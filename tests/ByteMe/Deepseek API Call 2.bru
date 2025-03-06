@@ -1,0 +1,22 @@
+meta {
+  name: Deepseek API Call 2
+  type: http
+  seq: 3
+}
+
+post {
+  url: http://localhost:11434/api/generate
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "model": "deepseek-r1:14b",
+    "prompt": "how are you today?"
+  }
+}

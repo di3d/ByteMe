@@ -26,14 +26,16 @@ export default function Build() {
                 <button className="bg-green-700 p-3 rounded-xl">Help me!</button>
             </div>
 
-            <div>
-                <input type="text" placeholder="the ai input goes here!"></input>
-            </div>
 
-            <div className="budget">
+
+            <div className="bg-pink-700 p-3 m-3 justify-between rounded-xl">
+                <div className="flex">
                 <label htmlFor="budget_slider">What's your budget?</label>
                 <input id="budget_slider" type="range">
-
+                </input>
+                </div>
+                <label htmlFor="ai_prompt">AI Prompt</label>
+                <input id="ai_prompt" type="text">
                 </input>
             </div>
 
