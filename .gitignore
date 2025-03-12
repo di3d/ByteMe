@@ -5,3 +5,5 @@ node_modules/
 .firebase/
 firebase-debug.log
 venv/
+.venv
+privateKey.json
