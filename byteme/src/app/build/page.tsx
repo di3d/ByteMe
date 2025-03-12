@@ -1,10 +1,16 @@
+'use client';
+import { useState } from "react"
+
 export default function Build() {
+    const [budget, setBudget] = useState(0);
+
+    const handleChange = (event) => {
+        console.log(event.target.value);
+        setBudget(event.target.value);
+    };
+
     return (
         <div>
-            <div>
-
-                <h1>ByteMe</h1>
-            </div>
             <div className="bg-blue-600 p-3 m-3 rounded-xl">
 
                 <h1>Find Parts for your PC!</h1>
@@ -29,15 +35,23 @@ export default function Build() {
 
 
             <div className="bg-pink-700 p-3 m-3 justify-between rounded-xl">
-                <div className="flex">
-                <label htmlFor="budget_slider">What's your budget?</label>
-                <input id="budget_slider" type="range">
+                <div className="text-xl font-bold">Requirements</div>
+                <form>
+                <div>
+                    <label htmlFor="budget_slider" className="block">Budget ${budget}</label>
+                    <input className="block" id="budget_slider" min="0" max="10000" value={budget} onChange={handleChange} type="range">
+                    </input>
+                </div>
+                <div>
+                <label htmlFor="ai_prompt" className="block">Prompt</label>
+                <input id="ai_prompt" type="text" required className="">
                 </input>
                 </div>
-                <label htmlFor="ai_prompt">AI Prompt</label>
-                <input id="ai_prompt" type="text">
-                </input>
+                </form>
+
+
             </div>
+
 
         </div>
     )
