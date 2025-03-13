@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ModeToggle } from "./theme-toggle";
 
 const Navbar = () => {
   const navitems = ["Build", "Catalog", "Support"];
@@ -20,6 +21,7 @@ const Navbar = () => {
           ))}
         </ul>
       </div>
+      <ModeToggle/>
     </nav>
   );
 };

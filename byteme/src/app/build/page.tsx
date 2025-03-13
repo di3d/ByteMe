@@ -4,7 +4,7 @@ import { useState } from "react";
 export default function Build() {
   const [budget, setBudget] = useState(0);
 
-  const handleChange = (event) => {
+  const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     console.log(event.target.value);
     setBudget(event.target.value);
   };

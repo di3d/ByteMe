@@ -4,4 +4,4 @@ export default function Catalog(){
             
         </div>
     )
-}
+}  
