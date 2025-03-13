@@ -1,0 +1,15 @@
+{
+  "name": "order-service",
+  "version": "1.0.0",
+  "description": "Order service using Express and Firebase",
+  "main": "Order.js",
+  "scripts": {
+    "start": "node Order.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.17.1",
+    "firebase-admin": "^9.8.0",
+    "uuid": "^8.3.2"
+  }
+}
