@@ -3,6 +3,7 @@ import json
 import setup_payment as setup
 import os
 
+from stripe_service import bp as stripe_bp
 from inventory import Inventory
 from flask import Flask, jsonify, request
 from flask_cors import CORS
@@ -17,7 +18,7 @@ CORS(app)
 
 # Configure Stripe
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")  # Fixed key name
-
+app.register_blueprint(stripe_bp, url_prefix='/api/payments')
 # Root route
 @app.route('/', methods=['GET'])
 def home():

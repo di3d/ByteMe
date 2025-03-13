@@ -38,12 +38,12 @@ class Inventory:
                 price_amount = 9999   # Default $99.99
                 
             total += price_amount * quantity
-    
-    # Ensure we're above the minimum charge amount (usually $0.50 or 50 cents)
+
+        # Ensure we're above the minimum charge amount (usually $0.50 or 50 cents)
         if total < 50:
             total = 50
-        
-        return total
+
+        return total  # This return statement was missing
 
     @staticmethod
     def get_shipping_cost(id) -> int:

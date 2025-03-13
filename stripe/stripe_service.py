@@ -51,3 +51,29 @@ def make_refund():
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 400
+    
+@bp.route('/webhook', methods=['POST'])
+def webhook():
+    payload = request.data
+    sig_header = request.headers.get('Stripe-Signature')
+    
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, os.getenv('STRIPE_WEBHOOK_SECRET')
+        )
+        
+        # Handle different event types
+        if event.type == 'payment_intent.succeeded':
+            # Process successful payment
+            payment_intent = event.data.object
+            # Update order status in database
+            print(f"Payment succeeded: {payment_intent.id}")
+            
+        elif event.type == 'payment_intent.payment_failed':
+            # Handle failed payment
+            payment_intent = event.data.object
+            print(f"Payment failed: {payment_intent.id}")
+            
+        return jsonify(success=True)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
