@@ -1,4 +1,12 @@
 "use client";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { useState } from "react";
 
 export default function Build() {
@@ -10,7 +18,22 @@ export default function Build() {
   };
 
   return (
-    <div>
+    <div className="flex flex-1 flex-col gap-4 p-4">
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink href="/">Home</BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbLink href="/components">Components</BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>Build</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
       <div className="bg-blue-600 p-3 m-3 rounded-xl">
         <h1>Find Parts for your PC!</h1>
         <div className="flex">
@@ -49,11 +72,8 @@ export default function Build() {
             ></input>
           </div>
           <div>
-            <label>
-
-            </label>
-            <input type="radio">
-            </input>
+            <label></label>
+            <input type="radio"></input>
           </div>
           <div>
             <label htmlFor="ai_prompt" className="block">
