@@ -78,6 +78,15 @@ export default function Login() {
                 Sign up!
               </a>
             </p>
+
+            <div className="mt-6">
+            <a 
+              href="/checkout" 
+              className="flex w-full justify-center rounded-md bg-green-600 px-3 py-1.5 text-sm/6 font-semibold text-white shadow-xs hover:bg-green-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600"
+            >
+              Proceed to Checkout (Demo)
+            </a>
+          </div>
           </div>
         </div>
       </>

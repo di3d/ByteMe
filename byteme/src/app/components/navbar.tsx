@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 const Navbar = () => {
-  const navitems = ["Build", "Components", "Support"];
+  const navitems = ["Build", "Components", "Support", "Checkout"];
 
   return (
     <nav className="bg-gray-900 p-4 shadow-lg">

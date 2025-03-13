@@ -1,6 +1,4 @@
-# Core dependencies for ByteMe Flask backend
-Flask>=2.0.0
-flask-cors>=3.0.0
-python-dotenv>=0.19.0
-stripe>=4.0.0
-# Add any other dependencies your local modules need
+flask==2.2.3
+flask-cors==3.0.10
+python-dotenv==1.0.0
+stripe==5.4.0

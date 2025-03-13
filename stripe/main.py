@@ -1,10 +1,6 @@
 import stripe
 import json
-import setup_payment as setup
 import os
-
-from stripe_service import bp as stripe_bp
-from inventory import Inventory
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from dotenv import load_dotenv, find_dotenv
@@ -17,93 +13,70 @@ app = Flask(__name__)
 CORS(app)
 
 # Configure Stripe
-stripe.api_key = os.getenv("STRIPE_SECRET_KEY")  # Fixed key name
-app.register_blueprint(stripe_bp, url_prefix='/api/payments')
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+
 # Root route
 @app.route('/', methods=['GET'])
 def home():
     return jsonify({
         'status': 'success',
-        'message': 'PC Store API is running'
+        'message': 'Stripe Payment Microservice is running'
     })
 
-@app.route('/config')
+@app.route('/config', methods=['GET'])
 def get_config():
     return jsonify({
-        'stripePublishableKey': os.getenv('STRIPE_PUBLISHABLE_KEY'),
-        'stripeCountry': os.getenv('STRIPE_ACCOUNT_COUNTRY') or 'US',
-        'country': 'US',
-        'currency': 'usd',
-        'paymentMethods': os.getenv('PAYMENT_METHODS').split(', ') if os.getenv('PAYMENT_METHODS') else ['card'],
-        'shippingOptions': [
-            {
-                'id': 'free',
-                'label': 'Free Shipping',
-                'detail': 'Delivery within 7-10 business days',
-                'amount': 0,
-            },
-            {
-                'id': 'standard',
-                'label': 'Standard Shipping',
-                'detail': 'Delivery within 3-5 business days',
-                'amount': 999,
-            },
-            {
-                'id': 'express',
-                'label': 'Express Shipping',
-                'detail': 'Delivery within 2 business days',
-                'amount': 1999,
-            },
-            {
-                'id': 'overnight',
-                'label': 'Overnight Shipping',
-                'detail': 'Next day delivery (order before 2pm)',
-                'amount': 2999,
-            }
-        ]
+        'stripePublishableKey': os.getenv('STRIPE_PUBLISHABLE_KEY')
     })
 
-@app.route('/products', methods=['GET'])
-def get_products():
-    products = Inventory.list_products()
-    if Inventory.products_exist(products):
-        return jsonify(products)
-    else:
-        # Create Products for our Stripe store if we haven't already.
-        setup.create_data()
-        products = Inventory.list_products()
-        return jsonify(products)
-
-# Add payment intent endpoints
-@app.route('/payment_intents', methods=['POST'])
-def make_payment_intent():
-    # Creates a new PaymentIntent with items from the cart.
+@app.route('/create-payment', methods=['POST'])
+def create_payment():
     data = json.loads(request.data)
     try:
+        # Validate the required amount field
+        if not data.get('amount'):
+            return jsonify({"error": "Amount is required"}), 400
+            
+        # Create a simple payment intent with just the amount
         payment_intent = stripe.PaymentIntent.create(
-            amount=Inventory.calculate_payment_amount(items=data['items']),
-            currency=data['currency'],
-            payment_method_types=['card']
+            payment_method_types=['card'],
+            amount=data.get('amount'),  # Total price passed from other services
+            currency=data.get('currency', 'sgd'),
+            automatic_payment_methods={"enabled": False},
+            metadata={
+                'order_id': data.get('order_id', '')
+            }
         )
 
-        return jsonify({'paymentIntent': payment_intent})
+        return jsonify({
+            'success': True,
+            'clientSecret': payment_intent.client_secret
+        })
     except Exception as e:
-        return jsonify({"error": str(e)}), 403
+        return jsonify({"error": str(e)}), 400
 
-@app.route('/payment_intents/<string:id>/shipping_change', methods=['POST'])
-def update_payment_intent(id):
-    data = json.loads(request.data)
-    amount = Inventory.calculate_payment_amount(items=data['items'])
-    amount += Inventory.get_shipping_cost(data['shippingOption']['id'])
+@app.route('/webhook', methods=['POST'])
+def webhook():
+    payload = request.data
+    sig_header = request.headers.get('Stripe-Signature')
+    
     try:
-        payment_intent = stripe.PaymentIntent.modify(
-            id,
-            amount=amount
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, os.getenv('STRIPE_WEBHOOK_SECRET')
         )
-
-        return jsonify({'paymentIntent': payment_intent})
+        
+        # Handle payment success
+        if event.type == 'payment_intent.succeeded':
+            payment_intent = event.data.object
+            order_id = payment_intent.metadata.get('order_id')
+            
+            # Here you would normally notify your Order service
+            # through an API call or message queue
+            print(f"Payment succeeded for order: {order_id}")
+            
+        return jsonify(success=True)
     except Exception as e:
-        return jsonify({"error": str(e)}), 403
+        return jsonify({'error': str(e)}), 400
 
 if __name__ == '__main__':
-    app.run(port=3000, debug=True)
+    app.run(port=5000, debug=True)
