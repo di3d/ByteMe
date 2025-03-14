@@ -1,5 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
+import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -15,5 +16,22 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
+const auth = getAuth(app);
 
-export { app, analytics };
+// Function to sign in a user and get an ID token
+async function signInAndGetToken(email, password) {
+  try {
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user;
+    const idToken = await user.getIdToken();
+    console.log('ID Token:', idToken);
+    return idToken;
+  } catch (error) {
+    console.error('Error signing in:', error);
+  }
+}
+
+// Example usage
+signInAndGetToken('user@example.com', 'password123');
+
+export { app, analytics, signInAndGetToken };
