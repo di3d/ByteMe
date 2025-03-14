@@ -1,7 +1,8 @@
 import Link from "next/link";
+import { ModeToggle } from "./theme-toggle";
 
 const Navbar = () => {
-  const navitems = ["Build", "Components", "Support"];
+  const navitems = ["Build", "Catalog", "Support"];
 
   return (
     <nav className="bg-gray-900 p-4 shadow-lg">
@@ -20,6 +21,7 @@ const Navbar = () => {
           ))}
         </ul>
       </div>
+      <ModeToggle/>
     </nav>
   );
 };
