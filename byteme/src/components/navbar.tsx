@@ -5,7 +5,12 @@ import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 
 const navLinks = [
   {
@@ -69,6 +74,13 @@ export default function Navbar() {
           ))}
         </nav>
 
+        {/* Login Button (Desktop) */}
+        <div className="hidden md:block">
+          <Button asChild>
+            <Link href="/login">Login</Link>
+          </Button>
+        </div>
+
         {/* Mobile Menu Button */}
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
           <SheetTrigger asChild>
@@ -96,6 +108,11 @@ export default function Navbar() {
                   </div>
                 </div>
               ))}
+
+              {/* Login Button (Mobile) */}
+              <Button asChild className="mt-4">
+                <Link href="/login">Login</Link>
+              </Button>
             </nav>
           </SheetContent>
         </Sheet>

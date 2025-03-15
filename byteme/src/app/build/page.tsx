@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Separator } from "@/components/ui/separator";
 import { Rocket, Info, Search } from "lucide-react";
+import Chat from "@/components/chat";
 
 export default function Build() {
   const [budget, setBudget] = useState(1500); // Default budget
@@ -111,6 +112,8 @@ export default function Build() {
           </form>
         </CardContent>
       </Card>
+
+      <Chat/>
     </div>
   );
 }
