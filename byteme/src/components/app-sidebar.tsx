@@ -31,11 +31,11 @@ const data = {
       items: [
         {
           title: "My Account",
-          url: "/build",
+          url: "/account",
         },
         {
           title: "Recommendations",
-          url: "#",
+          url: "/recommendations",
         },
       ],
     },
@@ -44,17 +44,20 @@ const data = {
       url: "#",
       items: [
         {
-          title: "Design",
+          title: "Build",
           url: "/build",
         },
         {
           title: "Purchase",
-          url: "#",
-          isActive: true,
+          url: "/purchase",
         },
         {
           title: "Upgrade",
-          url: "#",
+          url: "/upgrade",
+        },
+        {
+          title: "Catalog",
+          url: "/catalog",
         },
       ],
     },
@@ -64,7 +67,7 @@ const data = {
       items: [
         {
           title: "Refund",
-          url: "#",
+          url: "/refund",
         },
       ],
     },
@@ -74,7 +77,7 @@ const data = {
       items: [
         {
           title: "Contact",
-          url: "#",
+          url: "/contact",
         },
       ],
     },

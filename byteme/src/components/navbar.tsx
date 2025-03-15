@@ -1,29 +1,105 @@
-import Link from "next/link";
-import { ModeToggle } from "./theme-toggle";
+"use client";
 
-const Navbar = () => {
-  const navitems = ["Build", "Catalog", "Support"];
+import { useState } from "react";
+import Link from "next/link";
+import { Menu, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuItem } from "@/components/ui/dropdown-menu";
+
+const navLinks = [
+  {
+    title: "Home",
+    href: "/",
+    submenu: [
+      { title: "My Account", href: "/account" },
+      { title: "Recommendations", href: "/recommendations" },
+    ],
+  },
+  {
+    title: "Build Your PC",
+    href: "/build",
+    submenu: [
+      { title: "Build", href: "/build" },
+      { title: "Purchase", href: "/purchase" },
+      { title: "Upgrade", href: "/upgrade" },
+      { title: "Catalog", href: "/catalog" },
+    ],
+  },
+  {
+    title: "Support",
+    href: "/support",
+    submenu: [{ title: "Refund", href: "/refund" }],
+  },
+  {
+    title: "About Us",
+    href: "/about",
+    submenu: [{ title: "Contact", href: "/contact" }],
+  },
+];
+
+export default function Navbar() {
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <nav className="bg-gray-900 p-4 shadow-lg">
-      <div className="container mx-auto flex justify-between items-center">
-        <h1 className="text-white text-2xl font-bold">ByteMe</h1>
-        <ul className="flex space-x-6">
-          {navitems.map((item) => (
-            <li key={item}>
-              <Link
-                href={`/${item.toLowerCase().replace(/\s+/g, "-")}`}
-                className="text-gray-300 hover:text-white transition duration-300"
-              >
-                {item}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </div>
-      <ModeToggle/>
-    </nav>
-  );
-};
+    <header className="w-full border-b bg-background">
+      <div className="max-w-6xl mx-auto px-4 flex items-center justify-between h-16">
+        {/* Logo */}
+        <Link href="/" className="text-lg font-semibold">
+          ByteMe
+        </Link>
 
-export default Navbar;
+        {/* Desktop Navigation */}
+        <nav className="hidden md:flex space-x-6">
+          {navLinks.map((nav) => (
+            <DropdownMenu key={nav.title}>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost">{nav.title}</Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                {nav.submenu.map((item) => (
+                  <DropdownMenuItem key={item.title}>
+                    <Link href={item.href} className="w-full">
+                      {item.title}
+                    </Link>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ))}
+        </nav>
+
+        {/* Mobile Menu Button */}
+        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+          <SheetTrigger asChild>
+            <Button variant="ghost" className="md:hidden">
+              <Menu className="w-6 h-6" />
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="w-64">
+            <div className="flex justify-between items-center p-4">
+              <span className="text-lg font-semibold">Menu</span>
+              <Button variant="ghost" size="icon" onClick={() => setMobileOpen(false)}>
+                <X className="w-5 h-5" />
+              </Button>
+            </div>
+            <nav className="flex flex-col space-y-4 p-4">
+              {navLinks.map((nav) => (
+                <div key={nav.title}>
+                  <span className="font-medium">{nav.title}</span>
+                  <div className="flex flex-col pl-4 mt-1 space-y-2">
+                    {nav.submenu.map((item) => (
+                      <Link key={item.title} href={item.href} className="hover:underline">
+                        {item.title}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </nav>
+          </SheetContent>
+        </Sheet>
+      </div>
+    </header>
+  );
+}
