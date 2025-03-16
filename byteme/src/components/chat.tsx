@@ -18,7 +18,6 @@ export default function Chat() {
 
     try {
       const response = await axios.post("http://localhost:5000/chat", { message: input });
-
       // Remove <think> and </think> tags from the bot's response
       const cleanedResponse = response.data.reply.replace(/<think.*?>.*?<\/think>/g, "").trim();
 

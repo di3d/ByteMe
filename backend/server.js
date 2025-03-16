@@ -11,6 +11,8 @@ const OLLAMA_URL = "http://localhost:11434/api/generate";
 app.post("/chat", async (req, res) => {
   const { message } = req.body;
 
+
+  
   try {
     const response = await axios.post(OLLAMA_URL, {
       model: "deepseek-r1:14b",
