@@ -1,5 +1,5 @@
 # Use the official Node.js image as the base image
-FROM node:14
+FROM node:18
 
 # Create and change to the app directory
 WORKDIR /usr/src/app
@@ -10,7 +10,7 @@ COPY package*.json ./
 # Install dependencies
 RUN npm install
 
-# Install Firebase CLI
+# Install firebase-tools
 RUN npm install -g firebase-tools
 
 # Copy the rest of the application code
