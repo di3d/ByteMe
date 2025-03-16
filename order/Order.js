@@ -5,12 +5,11 @@ const { v4: uuidv4 } = require('uuid');
 const app = express();
 const amqp = require('amqplib');
 
-
 app.use(cors());
 app.use(express.json());
 
 // Fetch the service account key JSON file contents
-const serviceAccount = require('./../privateKey.json');
+const serviceAccount = require('./privateKey.json');
 
 // Initialize the app with a service account, granting admin privileges
 admin.initializeApp({
