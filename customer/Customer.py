@@ -1,8 +1,7 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 import firebase_admin
-from firebase_admin import credentials
-from firebase_admin import db
+from firebase_admin import credentials, firestore
 
 app = Flask(__name__)
 CORS(app)
@@ -11,22 +10,21 @@ CORS(app)
 cred = credentials.Certificate('./privateKey.json')
 
 # Initialize the app with a service account, granting admin privileges
-firebase_admin.initialize_app(cred, {
-    'databaseURL': 'https://esdteam3g7-73a7b-default-rtdb.asia-southeast1.firebasedatabase.app/'
-})
+firebase_admin.initialize_app(cred)
 
-# As an admin, the app has access to read and write all data, regradless of Security Rules
-ref = db.reference('Customers')
-
+# Get Firestore database reference
+db = firestore.client()  # Firestore database reference
+customers_ref = db.collection('customer')  # Firestore collection reference
 
 @app.route("/customer/<string:customer_id>", methods=['GET'])
 def getCustomer(customer_id):
-    customer = ref.child(customer_id).get()
-    if customer:
+    # Retrieve customer document from Firestore
+    customer_doc = customers_ref.document(customer_id).get()
+    if customer_doc.exists:
         return jsonify(
             {
                 "code": 200,
-                "data": customer
+                "data": customer_doc.to_dict()  # Convert document to dictionary format
             }
         ), 200
         
@@ -34,17 +32,17 @@ def getCustomer(customer_id):
         return jsonify(
             {
                 "code": 404,
-                "data": "Customer not found"
+                "message": "Customer not found"
             }
         ), 404
 
 @app.route("/customer", methods=['POST'])
 def create_customer():
     try:
-        data = request.get_json() #extact json data passed in when user creates an account
+        data = request.get_json()  # Extract JSON data passed in when user creates an account
         
-        #validate fields to be passed on to customer JSON format
-        required_fields = ["customer_id", "name", "address", "email" ]
+        # Validate fields to be passed on to customer JSON format
+        required_fields = ["customer_id", "name", "address", "email"]
         for field in required_fields:
             if field not in data:
                 return jsonify(
@@ -54,33 +52,39 @@ def create_customer():
                     }
                 ), 400
                 
-        #json structure to be passed to db
+        # JSON structure to be passed to Firestore
         customer_id = data["customer_id"]
         customer_data = {
-            "name":data["name"],
-            "address":data["address"],
-            "email":data["email"]
+            "name": data["name"],
+            "address": data["address"],
+            "email": data["email"]
         }
         
-        #store in fb
-        ref.child(customer_id).set(customer_data)
+        # Check if the document exists
+        customer_doc = customers_ref.document(customer_id).get()
+        if customer_doc.exists:
+            return jsonify(
+                {
+                    "code": 409,
+                    "message": "Customer already exists"
+                }
+            ), 409
         
-        return jsonify (
+        # Store in Firestore
+        customers_ref.document(customer_id).set(customer_data)
+        
+        return jsonify(
             {
-                "code":201,
-                "message":"Customer created successfully",
-                "data":customer_data
+                "code": 201,
+                "message": "Customer created successfully",
+                "data": customer_data
             }
         ), 201
         
-        
     except Exception as e:
         return jsonify({"code": 500, "message": str(e)}), 500
-    
-
 
 
 if __name__ == '__main__':
     # app.run(port=5004, debug=True)
     app.run(host='0.0.0.0', port=5006)
-    
