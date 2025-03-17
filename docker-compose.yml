@@ -1,6 +1,13 @@
 version: "3.8"
 
 services:
+  amqp:
+    build:
+      context: ./amqp
+      dockerfile: Dockerfile
+    ports:
+      - "5672:5672"
+
   customer:
     build:
       context: ./customer
@@ -18,6 +25,8 @@ services:
       - "5002:5002"
     environment:
       - FLASK_ENV=development
+    depends_on:
+      - amqp
 
   delivery:
     build:
