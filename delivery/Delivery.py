@@ -16,8 +16,8 @@ app = Flask(__name__)
 CORS(app)
 
 # Database configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:iloveESD123@localhost:5432/customer'
-# app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:iloveESD123@host.docker.internal:5432/delivery'
+db_host = os.getenv('DB_HOST', 'localhost')
+app.config['SQLALCHEMY_DATABASE_URI'] = f'postgresql://postgres:iloveESD123@{db_host}:5432/delivery'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Initialize the database
@@ -29,7 +29,7 @@ class Delivery(db.Model):
     id = db.Column(db.String, primary_key=True)
     order_id = db.Column(db.String, nullable=False)
     customer_id = db.Column(db.String, nullable=False)
-    parts_list = db.Column(db.String, nullable=False)
+    parts_list = db.Column(db.Text, nullable=False)  # Store as JSON string
     timestamp = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
 @app.route("/delivery/<string:delivery_id>", methods=['GET'])
@@ -44,7 +44,7 @@ def get_delivery(delivery_id):
                     "delivery_id": delivery.id,
                     "order_id": delivery.order_id,
                     "customer_id": delivery.customer_id,
-                    "parts_list": delivery.parts_list,
+                    "parts_list": json.loads(delivery.parts_list),  # Deserialize JSON string
                     "timestamp": delivery.timestamp.isoformat()
                 }
             }
@@ -78,7 +78,7 @@ def create_delivery():
             id=str(uuid.uuid4()),
             order_id=data["order_id"],
             customer_id=data["customer_id"],
-            parts_list=data["parts_list"]
+            parts_list=json.dumps(data["parts_list"])  # Serialize to JSON string
         )
         db.session.add(new_delivery)
         db.session.commit()
@@ -91,7 +91,7 @@ def create_delivery():
                     "delivery_id": new_delivery.id,
                     "order_id": new_delivery.order_id,
                     "customer_id": new_delivery.customer_id,
-                    "parts_list": new_delivery.parts_list,
+                    "parts_list": json.loads(new_delivery.parts_list),  # Deserialize JSON string
                     "timestamp": new_delivery.timestamp.isoformat()
                 }
             }
@@ -109,7 +109,7 @@ def store_delivery_to_db(data):
         id=delivery_id,
         order_id=data["order_id"],
         customer_id=data["customer_id"],
-        parts_list=data.get("parts_list", "N/A"),
+        parts_list=json.dumps(data.get("parts_list", "N/A")),  # Serialize to JSON string
         timestamp=datetime.utcnow()
     )
     db.session.add(new_delivery)

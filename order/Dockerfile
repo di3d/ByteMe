@@ -18,9 +18,18 @@ RUN python -m pip install --no-cache-dir -r requirements.txt
 
 # Copy the rest of the application code
 COPY . .
+COPY ../amqp ./amqp
+
+# Set environment variable for Flask
+ENV FLASK_APP=Order.py
+
+# Run database migrations
+RUN flask db init || true
+RUN flask db migrate -m "Initial migration." || true
+RUN flask db upgrade || true
 
 # Expose the port the app runs on
 EXPOSE 5002
 
 # Command to run the application
-CMD ["python", "Order.py"]
+CMD ["flask", "run", "--host=0.0.0.0", "--port=5002"]

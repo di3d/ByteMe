@@ -8,6 +8,7 @@ from datetime import datetime
 import sys
 import os
 import json
+from sqlalchemy.dialects.postgresql import JSON
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../amqp')))
 try:
@@ -32,7 +33,7 @@ migrate = Migrate(app, db)
 class Order(db.Model):
     id = db.Column(db.String, primary_key=True)
     customer_id = db.Column(db.String, nullable=False)
-    parts_list = db.Column(db.String, nullable=False)
+    parts_list = db.Column(JSON, nullable=False)
     timestamp = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     status = db.Column(db.String, nullable=False, default="pending")
 
