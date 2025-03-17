@@ -1,6 +1,7 @@
 import pika
 import json
 import time
+import socket
 from config import Config
 
 def get_rabbitmq_connection():
@@ -18,9 +19,19 @@ def get_rabbitmq_connection():
         parameters = pika.ConnectionParameters(
             host=Config.RABBITMQ_HOST,
             port=Config.RABBITMQ_PORT,
-            credentials=credentials
+            credentials=credentials,
+            connection_attempts=1,  # Fast fail if RabbitMQ is not available
+            socket_timeout=2,  # Timeout after 2 seconds
+            blocked_connection_timeout=2  # Additional timeout parameter
         )
         return pika.BlockingConnection(parameters)
+    except pika.exceptions.AMQPConnectionError as e:
+        print(f"RabbitMQ connection error: Could not connect to RabbitMQ at {Config.RABBITMQ_HOST}:{Config.RABBITMQ_PORT}")
+        print(f"Detailed error: {str(e)}")
+        return None
+    except socket.gaierror as e:
+        print(f"RabbitMQ DNS resolution error: {str(e)}")
+        return None
     except Exception as e:
         print(f"RabbitMQ connection error: {str(e)}")
         return None

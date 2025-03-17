@@ -14,19 +14,11 @@ def create_checkout_session():
     
     Request body parameters:
     - amount: (required) Amount in cents
-    - line_items: (optional) Custom line items array
     - currency: (optional) 3-letter currency code, default 'usd'
-    - product_name: (optional) Name of the product
-    - product_description: (optional) Description of the product
-    - quantity: (optional) Quantity of items, default 1
-    - payment_method_types: (optional) Array of payment methods, default ['card']
-    - mode: (optional) Checkout mode, default 'payment'
+    - metadata: (optional) Additional metadata (e.g., user_id)
     - success_url: (optional) URL to redirect on success
     - cancel_url: (optional) URL to redirect on cancel
-    - metadata: (optional) Additional metadata
     - customer_email: (optional) Pre-fill customer email
-    - shipping_address_collection: (optional) Shipping address collection config
-    - billing_address_collection: (optional) Billing address collection config
     
     Returns:
     - url: Checkout session URL
@@ -34,34 +26,26 @@ def create_checkout_session():
     data = json.loads(request.data)
     try:
         # Validate minimum required fields
-        if not data.get('amount') and not data.get('line_items'):
-            return jsonify({"error": "Either amount or line_items is required"}), 400
+        if not data.get('amount'):
+            return jsonify({"error": "Amount is required"}), 400
             
-        # Create line items from the request
-        line_items = []
-        
-        # If line items are provided directly, use them
-        if data.get('line_items'):
-            line_items = data.get('line_items')
-        # Otherwise, create a generic line item
-        else:
-            line_items = [{
-                'price_data': {
-                    'currency': data.get('currency', 'usd'),
-                    'product_data': {
-                        'name': data.get('product_name', 'Product'),
-                        'description': data.get('product_description', '')
-                    },
-                    'unit_amount': data.get('amount'),
+        # Create a generic line item
+        line_items = [{
+            'price_data': {
+                'currency': data.get('currency', 'usd'),
+                'product_data': {
+                    'name': data.get('product_name', 'Payment'),
                 },
-                'quantity': data.get('quantity', 1),
-            }]
+                'unit_amount': data.get('amount'),
+            },
+            'quantity': 1,
+        }]
         
         # Create session parameters
         session_params = {
-            'payment_method_types': data.get('payment_method_types', ['card']),
+            'payment_method_types': ['card'],
             'line_items': line_items,
-            'mode': data.get('mode', 'payment'),
+            'mode': 'payment',
             'success_url': data.get('success_url', Config.DEFAULT_SUCCESS_URL),
             'cancel_url': data.get('cancel_url', Config.DEFAULT_CANCEL_URL),
         }
@@ -72,12 +56,6 @@ def create_checkout_session():
         
         if data.get('customer_email'):
             session_params['customer_email'] = data.get('customer_email')
-            
-        if data.get('shipping_address_collection'):
-            session_params['shipping_address_collection'] = data.get('shipping_address_collection')
-            
-        if data.get('billing_address_collection'):
-            session_params['billing_address_collection'] = data.get('billing_address_collection')
         
         # Create the Checkout Session
         checkout_session = stripe.checkout.Session.create(**session_params)

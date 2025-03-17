@@ -3,7 +3,7 @@ import stripe
 import json
 import time
 from config import Config
-from utils.rabbitmq_utils import publish_message
+from utils.rabbitmq_utils import publish_message, get_rabbitmq_connection
 from endpoints.init import refund_bp
 
 # Configure Stripe
@@ -63,8 +63,7 @@ def create_refund_async():
     Request body parameters:
     - payment_intent_id: (required) Payment Intent ID to refund
     - amount: (optional) Amount to refund in cents, if omitted refunds full amount
-    - reason: (optional) Reason for refund, default 'requested_by_customer'
-    - order_id: (optional) Order ID for tracking
+    - user_id: (optional) User ID for tracking
     - request_id: (optional) Request ID for tracking, auto-generated if omitted
     
     Returns:
@@ -81,11 +80,16 @@ def create_refund_async():
         refund_request = {
             'payment_intent_id': data.get('payment_intent_id'),
             'amount': data.get('amount'),
-            'reason': data.get('reason', 'requested_by_customer'),
-            'order_id': data.get('order_id'),
+            'user_id': data.get('user_id'),
             'request_id': data.get('request_id', str(time.time())),
             'timestamp': int(time.time())
         }
+        
+        # Check if RabbitMQ is available
+        if not get_rabbitmq_connection():
+            # Fall back to synchronous processing if RabbitMQ is unavailable
+            print("RabbitMQ unavailable - falling back to synchronous refund processing")
+            return process_refund_synchronously(data)
         
         # Publish to the refund requests queue
         success = publish_message(Config.QUEUE_REFUND_REQUESTS, refund_request)
@@ -97,13 +101,50 @@ def create_refund_async():
                 'request_id': refund_request['request_id']
             })
         else:
-            return jsonify({
-                'success': False,
-                'error': 'Failed to queue refund request'
-            }), 500
+            # If publishing failed, fall back to synchronous processing
+            print("Failed to publish to RabbitMQ - falling back to synchronous refund processing")
+            return process_refund_synchronously(data)
             
     except Exception as e:
+        print(f"Error in refund async: {str(e)}")
         return jsonify({'error': str(e)}), 400
+
+def process_refund_synchronously(data):
+    """
+    Process a refund synchronously (as fallback when RabbitMQ is unavailable)
+    
+    Args:
+        data (dict): Request data containing payment_intent_id, amount, etc.
+        
+    Returns:
+        Response: Flask JSON response
+    """
+    try:
+        # Create refund parameters
+        refund_params = {
+            'payment_intent': data.get('payment_intent_id'),
+            'reason': data.get('reason', 'requested_by_customer')
+        }
+        
+        # Add amount if provided for partial refunds
+        if data.get('amount'):
+            refund_params['amount'] = data.get('amount')
+            
+        # Process the refund directly through Stripe
+        refund = stripe.Refund.create(**refund_params)
+        
+        return jsonify({
+            'success': True,
+            'message': 'Refund processed synchronously (RabbitMQ unavailable)',
+            'refund': {
+                'id': refund.id,
+                'amount': refund.amount,
+                'status': refund.status
+            },
+            'request_id': data.get('request_id', str(time.time()))
+        })
+    except Exception as e:
+        return jsonify({'error': f"Synchronous refund failed: {str(e)}"}), 400
 
 @refund_bp.route('/refund-status/<request_id>', methods=['GET'])
 def get_refund_status(request_id):

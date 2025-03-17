@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 
 export default function Checkout() {
   // Simplified state
@@ -21,6 +21,7 @@ export default function Checkout() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [checkoutUrl, setCheckoutUrl] = useState('');
+  const hasCreatedSession = useRef(false);
   
   // Format amount for display
   const formatAmount = (amount) => {
@@ -32,7 +33,11 @@ export default function Checkout() {
 
   // Load Stripe checkout session
   useEffect(() => {
+    // Skip if we already created a session in this component lifecycle
+    if (hasCreatedSession.current) return;
+    
     console.log("Creating checkout session...");
+    hasCreatedSession.current = true;
     
     // Format line items properly for Stripe
     const line_items = [{

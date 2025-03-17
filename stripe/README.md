@@ -1,56 +1,59 @@
 # Stripe Payment Microservice
 
-A comprehensive wrapper service for Stripe payment processing that provides simple APIs for payments, checkouts, and asynchronous refunds using RabbitMQ.
+A comprehensive wrapper service for Stripe payment processing that provides simple REST APIs for payments, checkouts, and asynchronous refunds using RabbitMQ.
+
+## Quick Start
+
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/ByteMe.git
+cd ByteMe/stripe
+
+# Set up a virtual environment
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Create a .env file with your Stripe keys (see Configuration section)
+touch .env
+
+# Start the service
+python app.py
+```
+
+Your service is now running at http://localhost:5000!
 
 ## Features
 
-- **Checkout Sessions**: Easy creation of Stripe-hosted checkout pages
-- **Direct Payment Intents**: For custom payment UIs
-- **Refund Processing**: Both synchronous and asynchronous options
-- **Webhook Handling**: Process Stripe events securely
-- **Asynchronous Architecture**: Background processing via RabbitMQ queues
-- **RESTful APIs**: Simple HTTP endpoints for all payment operations
+- **✅ Checkout Sessions**: Create Stripe checkout pages with a single API call
+- **✅ Direct Payment Intents**: For custom payment UIs
+- **✅ Refund Processing**: Both synchronous and asynchronous options
+- **✅ Webhook Handling**: Process Stripe events securely
+- **✅ Fault Tolerance**: Falls back to synchronous processing if RabbitMQ is unavailable
+- **✅ CORS Support**: Works with frontend applications on different domains
 
-## Architecture
+## Why Use This Wrapper?
 
-![Architecture Overview](https://i.imgur.com/8ZYs4Dw.png)
+- **Simplified Integration**: Clean REST APIs that hide Stripe's complexity
+- **Asynchronous Processing**: Fire-and-forget refunds and webhook handling
+- **Fault Tolerance**: Graceful degradation when RabbitMQ is unavailable
+- **Ready for Production**: Modular design, error handling, and logging built-in
 
-This service uses a layered architecture:
+## Configuration
 
-1. **Endpoints Layer**: RESTful APIs for client applications
-2. **Process Layer**: Background workers for asynchronous operations
-3. **Utils Layer**: Shared utilities for RabbitMQ and other functions
-4. **Configuration**: Centralized settings management
+Create a `.env` file in the project root with the following variables:
+````
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_PUBLISHABLE_KEY=pk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
 
-## Prerequisites
-
-- Python 3.8+
-- RabbitMQ server
-- Stripe account with API keys
-
-## Installation
-
-1. Clone this repository
-2. Create a virtual environment:
-   ```
-   python -m venv .venv
-   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-   ```
-3. Install dependencies:
-   ```
-   pip install -r requirements.txt
-   ```
-4. Create a `.env` file in the root directory with your configuration:
-   ```
-   STRIPE_SECRET_KEY=sk_test_...
-   STRIPE_PUBLISHABLE_KEY=pk_test_...
-   STRIPE_WEBHOOK_SECRET=whsec_...
-   
-   RABBITMQ_HOST=localhost
-   RABBITMQ_PORT=5672
-   RABBITMQ_USER=guest
-   RABBITMQ_PASSWORD=guest
-   ```
+RABBITMQ_HOST=localhost
+RABBITMQ_PORT=5672
+RABBITMQ_USER=guest
+RABBITMQ_PASSWORD=guest
+```
 
 ## Running the Service
 

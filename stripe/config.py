@@ -25,6 +25,14 @@ class Config:
     RABBITMQ_PASSWORD = os.getenv('RABBITMQ_PASSWORD', 'guest')
     
     # Queue names
-    QUEUE_REFUND_REQUESTS = 'stripe_refund_requests'
-    QUEUE_REFUND_RESPONSES = 'stripe_refund_responses'
-    QUEUE_WEBHOOKS = 'stripe_webhooks'
+    QUEUE_REFUND_REQUESTS = os.getenv('QUEUE_REFUND_REQUESTS', 'stripe_refund_requests')
+    QUEUE_REFUND_RESPONSES = os.getenv('QUEUE_REFUND_RESPONSES', 'stripe_refund_responses')
+    QUEUE_WEBHOOKS = os.getenv('QUEUE_WEBHOOKS', 'stripe_webhooks')
+    
+    # Feature flags
+    ENABLE_ASYNC_REFUNDS = os.getenv('ENABLE_ASYNC_REFUNDS', 'True').lower() in ('true', '1', 't')
+    RABBITMQ_REQUIRED = os.getenv('RABBITMQ_REQUIRED', 'False').lower() in ('true', '1', 't')
+    
+    # Connection retry parameters
+    RABBITMQ_CONNECTION_ATTEMPTS = int(os.getenv('RABBITMQ_CONNECTION_ATTEMPTS', 1))
+    RABBITMQ_CONNECTION_TIMEOUT = int(os.getenv('RABBITMQ_CONNECTION_TIMEOUT', 2))
