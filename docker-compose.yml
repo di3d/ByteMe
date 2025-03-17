@@ -6,7 +6,7 @@ services:
       context: ./customer
       dockerfile: Dockerfile
     ports:
-      - "5001:5000"
+      - "5001:5001"
     environment:
       - FLASK_ENV=development
 
@@ -15,7 +15,7 @@ services:
       context: ./order
       dockerfile: Dockerfile
     ports:
-      - "5002:5000"
+      - "5002:5002"
     environment:
       - FLASK_ENV=development
 
@@ -24,7 +24,7 @@ services:
       context: ./delivery
       dockerfile: Dockerfile
     ports:
-      - "5003:5000"
+      - "5003:5003"
     environment:
       - FLASK_ENV=development
 
@@ -33,7 +33,7 @@ services:
       context: ./recommendation
       dockerfile: Dockerfile
     ports:
-      - "5004:5000"
+      - "5004:5004"
     environment:
       - FLASK_ENV=development
 
@@ -42,7 +42,7 @@ services:
       context: ./make_purchase
       dockerfile: Dockerfile
     ports:
-      - "5005:5000"
+      - "5005:5005"
     environment:
       - FLASK_ENV=development
 
@@ -51,6 +51,6 @@ services:
       context: ./make_refund
       dockerfile: Dockerfile
     ports:
-      - "5006:5000"
+      - "5006:5006"
     environment:
       - FLASK_ENV=development
