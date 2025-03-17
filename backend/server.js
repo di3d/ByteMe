@@ -7,10 +7,12 @@ app.use(cors());
 app.use(express.json());
 
 const OLLAMA_URL = "http://localhost:11434/api/generate";
+const OUTSYSTEMS_URL = "https://personal-0careuf6.outsystemscloud.com//ByteMeComponentService/rest/ComponentAPI/GetComponents";
 
 app.post("/chat", async (req, res) => {
   const { message } = req.body;
 
+// add api call to outsystems here
 
   
   try {
