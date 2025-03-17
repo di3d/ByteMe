@@ -24,7 +24,7 @@ export default function Checkout() {
   const hasCreatedSession = useRef(false);
   
   // Format amount for display
-  const formatAmount = (amount) => {
+  const formatAmount = (amount: number) => {
     return new Intl.NumberFormat('en-SG', {
       style: 'currency',
       currency: 'SGD'
