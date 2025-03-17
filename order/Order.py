@@ -20,7 +20,8 @@ app = Flask(__name__)
 CORS(app)
 
 # Database configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:iloveESD123@host.docker.internal:5432/order'
+db_host = os.getenv('DB_HOST', 'localhost')
+app.config['SQLALCHEMY_DATABASE_URI'] = f'postgresql://postgres:iloveESD123@{db_host}:5432/order'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Initialize the database

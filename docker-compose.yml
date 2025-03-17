@@ -2,11 +2,10 @@ version: "3.8"
 
 services:
   amqp:
-    build:
-      context: ./amqp
-      dockerfile: Dockerfile
+    image: rabbitmq:3-management
     ports:
       - "5672:5672"
+      - "15672:15672" # Management UI
 
   customer:
     build:
@@ -25,6 +24,7 @@ services:
       - "5002:5002"
     environment:
       - FLASK_ENV=development
+      - DB_HOST=host.docker.internal
     depends_on:
       - amqp
 
@@ -36,6 +36,7 @@ services:
       - "5003:5003"
     environment:
       - FLASK_ENV=development
+      - DB_HOST=host.docker.internal
     depends_on:
       - amqp
 
