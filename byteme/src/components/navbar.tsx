@@ -26,7 +26,7 @@ const navLinks = [
     href: "/build",
     submenu: [
       { title: "Build", href: "/build" },
-      { title: "Purchase", href: "/purchase" },
+      { title: "Checkout", href: "/checkout" }, // Added checkout as a purchase option
       { title: "Upgrade", href: "/upgrade" },
       { title: "Catalog", href: "/catalog" },
     ],
@@ -34,7 +34,9 @@ const navLinks = [
   {
     title: "Support",
     href: "/support",
-    submenu: [{ title: "Refund", href: "/refund" }],
+    submenu: [
+      { title: "Refund", href: "/refund" } // This is correctly set up already
+    ],
   },
   {
     title: "About Us",

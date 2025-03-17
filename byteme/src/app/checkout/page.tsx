@@ -1,28 +1,31 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react';
+import { samplePCBuilds, calculateBuildTotal, getBuildById, PCBuild } from '@/data/sample-pc-build';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export default function Checkout() {
-  // Simplified state
-  const [orderDetails] = useState({
-    orderId: 'ORD' + Date.now(),
-    amount: 200000, // $2,000.00 in cents
-    items: [
-      { name: 'AMD Ryzen CPU', price: 29900 },
-      { name: 'NVIDIA RTX GPU', price: 79900 },
-      { name: 'Gaming Motherboard', price: 24900 },
-      { name: 'RAM 32GB', price: 19900 },
-      { name: 'SSD 1TB', price: 14900 },
-      { name: 'Power Supply 750W', price: 12900 },
-      { name: 'PC Case', price: 9900 },
-      { name: 'CPU Cooler', price: 7900 }
-    ]
-  });
-  const [loading, setLoading] = useState(true);
+  const [selectedBuildId, setSelectedBuildId] = useState(samplePCBuilds[0].id);
+  const [selectedBuild, setSelectedBuild] = useState<PCBuild>(samplePCBuilds[0]);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [checkoutUrl, setCheckoutUrl] = useState('');
   const hasCreatedSession = useRef(false);
   
+  // Update the selected build when the dropdown changes
+  useEffect(() => {
+    const build = getBuildById(selectedBuildId);
+    if (build) {
+      setSelectedBuild(build); // Remove orderId generation
+      // Reset checkout state when build changes
+      setCheckoutUrl('');
+      setError('');
+      hasCreatedSession.current = false;
+    }
+  }, [selectedBuildId]);
+
   // Format amount for display
   const formatAmount = (amount: number) => {
     return new Intl.NumberFormat('en-SG', {
@@ -31,48 +34,30 @@ export default function Checkout() {
     }).format(amount / 100);
   };
 
-  // Load Stripe checkout session
-  useEffect(() => {
-    // Skip if we already created a session in this component lifecycle
-    if (hasCreatedSession.current) return;
-    
-    console.log("Creating checkout session...");
+  // Create and initialize checkout session
+  const initializeCheckout = async () => {
+    setLoading(true);
     hasCreatedSession.current = true;
     
-    // Format line items properly for Stripe
-    const line_items = [{
-      price_data: {
-        currency: 'sgd',
-        product_data: {
-          name: 'Custom PC Build',
-          // Removed empty description to avoid Stripe error
-        },
-        unit_amount: orderDetails.amount,
-      },
-      quantity: 1,
-    }];
-    
-    // Create a checkout session
-    fetch('http://127.0.0.1:5000/create-checkout-session', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        line_items: line_items,
-        currency: 'sgd',
-        metadata: {
-          order_id: orderDetails.orderId
-        },
-        customer_email: 'john@example.com',
-        success_url: `${window.location.origin}/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${window.location.origin}/checkout?canceled=true`
-      })
-    })
-    .then(res => {
-      console.log("Server response status:", res.status);
-      return res.json();
-    })
-    .then(data => {
-      console.log("Server response data:", data);
+    const totalAmount = calculateBuildTotal(selectedBuild);
+
+    try {
+      const response = await fetch('http://127.0.0.1:5000/create-checkout-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: totalAmount,  // Add this line to pass total amount
+          currency: 'sgd',
+          product_name: selectedBuild.name,
+          metadata: {
+            build_name: selectedBuild.name
+          },
+          success_url: `${window.location.origin}/success?session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${window.location.origin}/checkout?canceled=true`
+        })
+      });
+      
+      const data = await response.json();
       
       if (data.error) {
         console.error("Error from server:", data.error);
@@ -91,13 +76,12 @@ export default function Checkout() {
       console.log("Checkout session created, URL:", data.url);
       setCheckoutUrl(data.url);
       setLoading(false);
-    })
-    .catch(error => {
+    } catch (error: any) {
       console.error('Error during session creation:', error);
       setError('Checkout initialization failed: ' + error.message);
       setLoading(false);
-    });
-  }, [orderDetails.amount, orderDetails.orderId]);
+    }
+  };
 
   const redirectToCheckout = () => {
     if (checkoutUrl) {
@@ -105,71 +89,132 @@ export default function Checkout() {
     }
   };
 
+  // Group components by category for better display
+  const groupedComponents = selectedBuild.items.reduce((groups: Record<string, typeof selectedBuild.items>, item) => {
+    if (!groups[item.category]) {
+      groups[item.category] = [];
+    }
+    groups[item.category].push(item);
+    return groups;
+  }, {});
+
+  const totalAmount = calculateBuildTotal(selectedBuild);
+
   return (
-    <div className="flex min-h-full flex-1 flex-col justify-center px-6 py-12 bg-gray-900">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <h2 className="text-center text-2xl font-bold tracking-tight text-white">
-          Complete Your Purchase
-        </h2>
-      </div>
-
-      <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-gray-800 px-6 py-6 shadow rounded-lg sm:px-8">
-          {loading ? (
-            <div className="text-center">
-              <p className="text-white mb-4">Loading checkout...</p>
-              <p className="text-xs text-gray-400">If loading takes too long, check console for errors</p>
-            </div>
-          ) : error ? (
-            <div className="text-center">
-              <p className="text-red-500 mb-4">{error}</p>
-              <button 
-                onClick={() => window.location.reload()}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-500"
-              >
-                Try Again
-              </button>
-            </div>
-          ) : (
-            <>
-              <div className="mb-6">
-                <h3 className="text-lg font-medium text-white mb-2">Order Summary</h3>
-                <div className="space-y-2">
-                  {orderDetails.items.map((item, index) => (
-                    <div key={index} className="flex justify-between text-sm">
-                      <span className="text-gray-300">{item.name}</span>
-                      <span className="text-white">{formatAmount(item.price)}</span>
-                    </div>
+    <div className="container mx-auto py-10 px-4 max-w-4xl">
+      <h1 className="text-3xl font-bold text-center mb-6">Complete Your Purchase</h1>
+      <p className="text-gray-500 text-center mb-10">Select a PC build configuration and proceed to checkout</p>
+      
+      <div className="grid grid-cols-1 gap-8">
+        {/* Build Selection */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Select Your PC Build</CardTitle>
+            <CardDescription>Choose from our pre-configured custom PC builds</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Select 
+              value={selectedBuildId} 
+              onValueChange={(value) => setSelectedBuildId(value)}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select a PC build" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectLabel>Available PC Builds</SelectLabel>
+                  {samplePCBuilds.map(build => (
+                    <SelectItem key={build.id} value={build.id}>
+                      {build.name} - {formatAmount(calculateBuildTotal(build))}
+                    </SelectItem>
                   ))}
-                  <div className="flex justify-between pt-2 border-t border-gray-700">
-                    <span className="font-bold text-white">Total</span>
-                    <span className="font-bold text-white">{formatAmount(orderDetails.amount)}</span>
-                  </div>
-                </div>
-              </div>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </CardContent>
+        </Card>
 
-              {checkoutUrl ? (
-                <div className="space-y-6">
-                  <div className="bg-white rounded-md p-4 text-center">
-                    <p className="text-gray-800 mb-4">Your order is ready for payment</p>
-                    <p className="text-sm text-gray-500">Click the button below to proceed to our secure checkout</p>
-                  </div>
-                  
-                  <button
-                    onClick={redirectToCheckout}
-                    className="flex w-full justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
-                  >
-                    Proceed to Secure Checkout
-                  </button>
+        {/* Build Details */}
+        <Card>
+          <CardHeader>
+            <CardTitle>{selectedBuild.name}</CardTitle>
+            <CardDescription>{selectedBuild.description}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ScrollArea className="h-[300px] pr-4">
+              {Object.keys(groupedComponents).map(category => (
+                <div key={category} className="mb-6">
+                  <h3 className="font-medium text-lg mb-2">{category}</h3>
+                  <ul className="space-y-2">
+                    {groupedComponents[category].map(item => (
+                      <li key={item.id} className="flex justify-between items-center border-b pb-2">
+                        <div>
+                          <p className="font-medium">{item.name}</p>
+                          {item.description && (
+                            <p className="text-sm text-gray-500">{item.description}</p>
+                          )}
+                        </div>
+                        <span className="font-medium">{formatAmount(item.price)}</span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-              ) : (
-                <div className="text-center py-4">
-                  <p className="text-white mb-4">Preparing checkout...</p>
+              ))}
+            </ScrollArea>
+          </CardContent>
+          <CardFooter className="flex justify-between border-t pt-4">
+            <div>
+              <p className="font-bold text-lg">Total</p>
+            </div>
+            <p className="font-bold text-lg">{formatAmount(totalAmount)}</p>
+          </CardFooter>
+        </Card>
+
+        {/* Checkout Actions */}
+        <Card>
+          <CardContent className="pt-6">
+            {loading ? (
+              <div className="text-center py-4">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                <p className="text-gray-500">Processing your request...</p>
+              </div>
+            ) : error ? (
+              <div className="text-center py-4">
+                <p className="text-red-500 mb-4">{error}</p>
+                <button 
+                  onClick={() => {
+                    setError('');
+                    hasCreatedSession.current = false;
+                  }}
+                  className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-500"
+                >
+                  Try Again
+                </button>
+              </div>
+            ) : checkoutUrl ? (
+              <div className="space-y-6">
+                <div className="bg-green-50 border border-green-200 rounded-md p-4 text-center">
+                  <p className="text-green-800 mb-2 font-medium">Your order is ready for payment</p>
+                  <p className="text-sm text-green-600">Click the button below to proceed to our secure checkout</p>
                 </div>
-              )}
-            </>
-          )}
-        </div>
+                
+                <button
+                  onClick={redirectToCheckout}
+                  className="w-full py-2.5 px-4 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                >
+                  Proceed to Secure Checkout
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={initializeCheckout}
+                className="w-full py-2.5 px-4 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              >
+                Continue to Payment
+              </button>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
