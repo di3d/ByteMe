@@ -10,7 +10,11 @@ import os
 import json
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../amqp')))
-import amqp_setup
+try:
+    import amqp_setup
+except ImportError as e:
+    print(f"Error importing amqp_setup: {e}")
+    sys.exit(1)
 
 app = Flask(__name__)
 CORS(app)
