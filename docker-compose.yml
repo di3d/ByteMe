@@ -1,0 +1,56 @@
+version: "3.8"
+
+services:
+  customer:
+    build:
+      context: ./customer
+      dockerfile: Dockerfile
+    ports:
+      - "5001:5001"
+    environment:
+      - FLASK_ENV=development
+
+  order:
+    build:
+      context: ./order
+      dockerfile: Dockerfile
+    ports:
+      - "5002:5002"
+    environment:
+      - FLASK_ENV=development
+
+  delivery:
+    build:
+      context: ./delivery
+      dockerfile: Dockerfile
+    ports:
+      - "5003:5003"
+    environment:
+      - FLASK_ENV=development
+
+  recommendation:
+    build:
+      context: ./recommendation
+      dockerfile: Dockerfile
+    ports:
+      - "5004:5004"
+    environment:
+      - FLASK_ENV=development
+
+  make_purchase:
+    build:
+      context: ./make_purchase
+      dockerfile: Dockerfile
+    ports:
+      - "5005:5005"
+    environment:
+      - FLASK_ENV=development
+
+  make_refund:
+    build:
+      context: ./make_refund
+      dockerfile: Dockerfile
+    ports:
+      - "5006:5006"
+    environment:
+      - FLASK_ENV=development

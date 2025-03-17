@@ -1,5 +1,11 @@
 # Use the official Python image as the base image
-FROM python:3-slim
+FROM python:3.9-slim
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 # Create and change to the app directory
 WORKDIR /usr/src/app
@@ -10,15 +16,11 @@ COPY requirements.txt ./
 # Install dependencies
 RUN python -m pip install --no-cache-dir -r requirements.txt
 
-# Install Firebase CLI
-RUN apt-get update && apt-get install -y curl && \
-    curl -sL https://firebase.tools | bash
-
 # Copy the rest of the application code
-COPY ./Customer.py .
+COPY . .
 
-# Expose the port the app runs on (if applicable)
-# EXPOSE 5000
+# Expose the port the app runs on
+EXPOSE 5006
 
 # Command to run the application
-CMD ["python", "./Customer.py"]
+CMD ["python", "Customer.py"]
