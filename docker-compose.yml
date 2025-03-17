@@ -36,6 +36,8 @@ services:
       - "5003:5003"
     environment:
       - FLASK_ENV=development
+    depends_on:
+      - amqp
 
   recommendation:
     build:

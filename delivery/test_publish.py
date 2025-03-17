@@ -13,7 +13,6 @@ channel = connection.channel()
 
 # Publish a test message
 message = {
-    
     "order_id": "12345",
     "customer_id": "67890",
     "parts_list": ["part_1", "part_2"],
@@ -24,7 +23,7 @@ channel.basic_publish(
     exchange=exchange_name,
     routing_key=routing_key,  # Should match a binding key in `amqp_setup.py`
     body=json.dumps(message),
-    properties=pika.BasicProperties(    
+    properties=pika.BasicProperties(
         delivery_mode=2,  # Makes the message persistent
     )
 )
