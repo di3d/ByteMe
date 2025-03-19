@@ -1,0 +1,156 @@
+version: "3.8" # Specify the Docker Compose file format version
+
+services:
+  # RabbitMQ service for message brokering
+  amqp:
+    image: rabbitmq:3-management # Use RabbitMQ with the management plugin
+    ports:
+      - "5672:5672" # Expose port 5672 for AMQP traffic
+      - "15672:15672" # Expose port 15672 for RabbitMQ management UI
+
+  # PostgreSQL for Customer microservice
+  postgres_customer:
+    image: postgres:17.4 # Use PostgreSQL version 17.4
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: iloveESD123
+      POSTGRES_DB: customer # Database name matches the microservice
+    ports:
+      - "5433:5432" # Expose PostgreSQL on port 5433 for Customer
+    volumes:
+      - postgres_customer_data:/var/lib/postgresql/data # Persist data
+
+  # Customer microservice
+  customer:
+    build:
+      context: ./customer # Path to the Customer service's Dockerfile
+      dockerfile: Dockerfile # Specify the Dockerfile to use
+    ports:
+      - "5001:5001" # Map port 5001 for the Customer service
+    environment:
+      - FLASK_ENV=development # Set Flask environment to development
+      - DB_HOST=postgres_customer # Connect to the Customer PostgreSQL container
+    depends_on:
+      - postgres_customer # Ensure PostgreSQL is started before the Customer service
+
+  # PostgreSQL for Order microservice
+  postgres_order:
+    image: postgres:17.4 # Use PostgreSQL version 17.4
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: iloveESD123
+      POSTGRES_DB: order # Database name matches the microservice
+    ports:
+      - "5434:5432" # Expose PostgreSQL on port 5434 for Order
+    volumes:
+      - postgres_order_data:/var/lib/postgresql/data # Persist data
+
+  # Order microservice
+  order:
+    build:
+      context: ./order # Path to the Order service's Dockerfile
+      dockerfile: Dockerfile # Specify the Dockerfile to use
+    ports:
+      - "5002:5002" # Map port 5002 for the Order service
+    environment:
+      - FLASK_ENV=development # Set Flask environment to development
+      - DB_HOST=postgres_order # Connect to the Order PostgreSQL container
+    depends_on:
+      - amqp # Ensure RabbitMQ service is started before the Order service
+      - postgres_order # Ensure PostgreSQL is started before the Order service
+
+  # PostgreSQL for Delivery microservice
+  postgres_delivery:
+    image: postgres:17.4 # Use PostgreSQL version 17.4
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: iloveESD123
+      POSTGRES_DB: delivery # Database name matches the microservice
+    ports:
+      - "5435:5432" # Expose PostgreSQL on port 5435 for Delivery
+    volumes:
+      - postgres_delivery_data:/var/lib/postgresql/data # Persist data
+
+  # Delivery microservice
+  delivery:
+    build:
+      context: ./delivery # Path to the Delivery service's Dockerfile
+      dockerfile: Dockerfile # Specify the Dockerfile to use
+    ports:
+      - "5003:5003" # Map port 5003 for the Delivery service
+    environment:
+      - FLASK_ENV=development # Set Flask environment to development
+      - DB_HOST=postgres_delivery # Connect to the Delivery PostgreSQL container
+    depends_on:
+      - amqp # Ensure RabbitMQ service is started before the Delivery service
+      - postgres_delivery # Ensure PostgreSQL is started before the Delivery service
+
+  # PostgreSQL for Recommendation microservice
+  postgres_recommendation:
+    image: postgres:17.4 # Use PostgreSQL version 17.4
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: iloveESD123
+      POSTGRES_DB: recommendation # Database name matches the microservice
+    ports:
+      - "5436:5432" # Expose PostgreSQL on port 5436 for Recommendation
+    volumes:
+      - postgres_recommendation_data:/var/lib/postgresql/data # Persist data
+
+  # Recommendation microservice
+  recommendation:
+    build:
+      context: ./recommendation # Path to the Recommendation service's Dockerfile
+      dockerfile: Dockerfile # Specify the Dockerfile to use
+    ports:
+      - "5004:5004" # Map port 5004 for the Recommendation service
+    environment:
+      - FLASK_ENV=development # Set Flask environment to development
+      - DB_HOST=postgres_recommendation # Connect to the Recommendation PostgreSQL container
+    depends_on:
+      - postgres_recommendation # Ensure PostgreSQL is started before the Recommendation service
+
+  # Make Purchase composite microservice
+  make_purchase:
+    build:
+      context: ./make_purchase # Path to the Make Purchase service's Dockerfile
+      dockerfile: Dockerfile # Specify the Dockerfile to use
+    ports:
+      - "5005:5005" # Map port 5005 for the Make Purchase service
+    environment:
+      - FLASK_ENV=development # Set Flask environment to development
+    depends_on:
+      - order # Ensure the Order service is started before Make Purchase
+      - customer # Ensure the Customer service is started before Make Purchase
+
+  # Make Refund composite microservice
+  make_refund:
+    build:
+      context: ./make_refund # Path to the Make Refund service's Dockerfile
+      dockerfile: Dockerfile # Specify the Dockerfile to use
+    ports:
+      - "5006:5006" # Map port 5006 for the Make Refund service
+    environment:
+      - FLASK_ENV=development # Set Flask environment to development
+    depends_on:
+      - order # Ensure the Order service is started before Make Refund
+      - customer # Ensure the Customer service is started before Make Refund
+
+  # Make Recommendation composite microservice
+  make_recommendation:
+    build:
+      context: ./make_recommendation # Path to the Make Recommendation service's Dockerfile
+      dockerfile: Dockerfile # Specify the Dockerfile to use
+    ports:
+      - "5007:5007" # Map port 5007 for the Make Recommendation service
+    environment:
+      - FLASK_ENV=development # Set Flask environment to development
+    depends_on:
+      - recommendation # Ensure the Recommendation service is started before Make Recommendation
+      - customer # Ensure the Customer service is started before Make Recommendation
+
+volumes:
+  postgres_customer_data:
+  postgres_order_data:
+  postgres_delivery_data:
+  postgres_recommendation_data:
