@@ -10,7 +10,10 @@ import os
 import json
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../amqp')))
-import amqp_setup
+
+# Check if we should skip AMQP setup
+if not os.getenv('SKIP_AMQP_SETUP'):
+    import amqp_setup
 
 app = Flask(__name__)
 CORS(app)

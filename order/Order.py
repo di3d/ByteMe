@@ -11,11 +11,10 @@ import json
 from sqlalchemy.dialects.postgresql import JSON
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../amqp')))
-try:
+
+# Check if we should skip AMQP setup
+if not os.getenv('SKIP_AMQP_SETUP'):
     import amqp_setup
-except ImportError as e:
-    print(f"Error importing amqp_setup: {e}")
-    sys.exit(1)
 
 app = Flask(__name__)
 CORS(app)

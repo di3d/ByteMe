@@ -10,6 +10,7 @@ for SERVICE in "${MICROSERVICES[@]}"; do
     # Enter the microservice directory
     if [ -d "$SERVICE" ]; then
         cd "$SERVICE" || exit
+        echo "Entered directory: $SERVICE"
         
         # Check if the expected Python file exists
         SERVICE_FILE="${SERVICE^}.py"  # Capitalize the first letter
@@ -19,10 +20,12 @@ for SERVICE in "${MICROSERVICES[@]}"; do
             # Activate virtual environment if available
             if [ -f "venv/bin/activate" ]; then
                 source venv/bin/activate
+                echo "Activated virtual environment"
             fi
             
             # Set FLASK_APP environment variable
             export FLASK_APP="$SERVICE_FILE"
+            echo "Set FLASK_APP to $SERVICE_FILE"
             
             # Run Flask migration commands
             flask db init || echo "Database already initialized."
@@ -32,6 +35,7 @@ for SERVICE in "${MICROSERVICES[@]}"; do
             # Deactivate virtual environment
             if [ -f "venv/bin/activate" ]; then
                 deactivate
+                echo "Deactivated virtual environment"
             fi
         else
             echo "No Flask application found in $SERVICE, skipping..."
@@ -39,6 +43,7 @@ for SERVICE in "${MICROSERVICES[@]}"; do
         
         # Return to the main directory
         cd ..
+        echo "Returned to main directory"
     else
         echo "Directory $SERVICE not found, skipping..."
     fi
