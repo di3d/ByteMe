@@ -5,8 +5,10 @@ import { samplePCBuilds, calculateBuildTotal, getBuildById, PCBuild } from '@/da
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useAuth } from '@/lib/auth-context'; // Add useAuth hook at top
 
 export default function Checkout() {
+  const { user } = useAuth(); // Add useAuth hook at top
   const [selectedBuildId, setSelectedBuildId] = useState(samplePCBuilds[0].id);
   const [selectedBuild, setSelectedBuild] = useState<PCBuild>(samplePCBuilds[0]);
   const [loading, setLoading] = useState(false);
@@ -47,6 +49,7 @@ export default function Checkout() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           amount: totalAmount,  // Add this line to pass total amount
+          customer_email: user?.email, // Add authenticated user's email
           currency: 'sgd',
           product_name: selectedBuild.name,
           metadata: {

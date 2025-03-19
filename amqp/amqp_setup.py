@@ -2,20 +2,17 @@ import pika
 from os import environ
 
 # Note about AMQP connection: various network firewalls, filters, gateways (e.g., SMU VPN on wifi), may hinder the connections;
-# If "pika.exceptions.AMQPConnectionError" happens, may try again after disconnecting the wifi and/or disabling firewalls.
-# If see: Stream connection lost: ConnectionResetError(10054, 'An existing connection was forcibly closed by the remote host', None, 10054, None)
-# - Try: simply re-run the program or refresh the page.
-# For rare cases, it's incompatibility between RabbitMQ and the machine running it,
-# - Use the Docker version of RabbitMQ instead: https://www.rabbitmq.com/download.html
 
-"""
-vairables for creating a connection with AMQP server
-"""
-amqp_host = environ.get('rabbit_host') or 'localhost' ###
-amqp_port = environ.get('rabbit_port') or 5672 ###
-exchange_name= "order_topic" 
-exchange_type= "topic"
+# Connection settings
+amqp_host = environ.get('rabbit_host') or 'localhost'
+amqp_port = environ.get('rabbit_port') or 5672
 
+# Define exchanges
+EXCHANGES = {
+    "order_topic": "topic",     # For order-related events
+    "notification": "topic",    # For notifications/emails
+    "payment": "topic"          # For payment/refund events
+}
 
 """
 This function creates a channel (connection) and establishes connection with AMQP server
@@ -79,32 +76,72 @@ def is_connection_open(connection):
         print("AMQP Error:", e)
         print("...creating a new connection.")
         return False
+
+# Initialize exchanges and queues
+def init_exchanges_and_queues():
+    """Initialize all exchanges and their queues"""
+    global connection, channel
     
+    # Create/verify exchanges
+    for exchange_name, exchange_type in EXCHANGES.items():
+        channel.exchange_declare(
+            exchange=exchange_name, 
+            exchange_type=exchange_type, 
+            durable=True
+        )
+
+    # Order-related queues
+    create_queue(
+        channel=channel,
+        exchange_name="order_topic",
+        queue_name="Order",
+        routing_key="order.create"
+    )
     
+    create_queue(
+        channel=channel,
+        exchange_name="order_topic",
+        queue_name="Delivery",
+        routing_key="delivery.#"
+    )
+    
+    create_queue(
+        channel=channel,
+        exchange_name="order_topic",
+        queue_name="Parts",
+        routing_key="parts.#"
+    )
+
+    # Notification queues
+    create_queue(
+        channel=channel,
+        exchange_name="notification",
+        queue_name="EmailNotifications",
+        routing_key="notification.#"
+    )
+
+    # Payment/Refund queues
+    create_queue(
+        channel=channel,
+        exchange_name="payment",
+        queue_name="stripe_refund_requests",
+        routing_key="refund.request"
+    )
+    
+    create_queue(
+        channel=channel,
+        exchange_name="payment",
+        queue_name="stripe_refund_responses",
+        routing_key="refund.response"
+    )
+
+# Create initial connection
 connection, channel = create_channel(
     hostname=amqp_host,
     port=amqp_port,
-    exchange_name=exchange_name,
-    exchange_type=exchange_type,
+    exchange_name="order_topic",  # Default exchange
+    exchange_type="topic"
 )
 
-create_queue(
-    channel=channel,
-    exchange_name=exchange_name,
-    queue_name="Order",
-    routing_key="order.create",
-)
-
-create_queue(
-    channel=channel,
-    exchange_name=exchange_name,
-    queue_name="Delivery",
-    routing_key="delivery.#",
-)
-
-create_queue(
-    channel=channel,
-    exchange_name=exchange_name,
-    queue_name="Parts",
-    routing_key="parts.#",
-)
+# Initialize all exchanges and queues
+init_exchanges_and_queues()

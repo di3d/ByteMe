@@ -30,6 +30,19 @@ else
     echo "  The application will run with limited functionality."
 fi
 
+# Check RabbitMQ connection
+echo "Checking RabbitMQ connection..."
+python -c "
+import pika
+try:
+    connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
+    connection.close()
+    print('✅ RabbitMQ is running')
+except Exception as e:
+    print('❌ RabbitMQ is not running. Please start RabbitMQ first.')
+    exit(1)
+"
+
 # Activate virtual environment
 echo "Activating Python virtual environment..."
 source .venv/bin/activate

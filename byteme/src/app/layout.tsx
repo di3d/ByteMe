@@ -12,6 +12,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import Navbar from "@/components/navbar";
 import { AuthProvider } from "@/lib/auth-context"; // Add this import
+import { Toaster } from "sonner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -46,6 +47,7 @@ export default function RootLayout({
           <AuthProvider> {/* Add this wrapper */}
             <Navbar/>
             {children}
+            <Toaster position="top-center" richColors expand={false} />
           </AuthProvider> 
         </ThemeProvider>
       </body>

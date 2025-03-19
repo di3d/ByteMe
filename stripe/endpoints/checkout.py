@@ -29,6 +29,10 @@ def create_checkout_session():
         if not data.get('amount'):
             return jsonify({"error": "Amount is required"}), 400
             
+        # Always require customer email for logged in users
+        if not data.get('customer_email'):
+            return jsonify({"error": "Customer email is required"}), 400
+
         # Create a generic line item
         line_items = [{
             'price_data': {
@@ -41,21 +45,24 @@ def create_checkout_session():
             'quantity': 1,
         }]
         
-        # Create session parameters
+        # Add payment_method_options for 3D Secure
         session_params = {
             'payment_method_types': ['card'],
+            'payment_method_options': {
+                'card': {
+                    'request_three_d_secure': 'any'  # Request 3DS when available
+                }
+            },
             'line_items': line_items,
             'mode': 'payment',
             'success_url': data.get('success_url', Config.DEFAULT_SUCCESS_URL),
             'cancel_url': data.get('cancel_url', Config.DEFAULT_CANCEL_URL),
+            'customer_email': data.get('customer_email'),  # Use authenticated email
         }
         
         # Add optional parameters if provided
         if data.get('metadata'):
             session_params['metadata'] = data.get('metadata')
-        
-        if data.get('customer_email'):
-            session_params['customer_email'] = data.get('customer_email')
         
         # Create the Checkout Session
         checkout_session = stripe.checkout.Session.create(**session_params)
@@ -63,6 +70,29 @@ def create_checkout_session():
         return jsonify({'url': checkout_session.url})
     except Exception as e:
         return jsonify({"error": str(e)}), 400
+
+# Add endpoint to handle 3D Secure authentication completion
+@checkout_bp.route('/payment-auth-complete', methods=['POST'])
+def payment_auth_complete():
+    try:
+        intent = stripe.PaymentIntent.retrieve(request.json['payment_intent'])
+        
+        if intent.status == 'requires_action':
+            return jsonify({
+                'requires_action': True,
+                'payment_intent_client_secret': intent.client_secret
+            })
+        elif intent.status == 'succeeded':
+            return jsonify({
+                'success': True
+            })
+        else:
+            return jsonify({
+                'error': 'Payment authentication failed'
+            }), 400
+            
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @checkout_bp.route('/checkout-session', methods=['GET'])
 def get_checkout_session():
