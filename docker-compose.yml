@@ -66,3 +66,12 @@ services:
       - "5006:5006"
     environment:
       - FLASK_ENV=development
+
+  make_recommendation:
+    build:
+      context: ./make_recommendation
+      dockerfile: Dockerfile
+    ports:
+      - "5007:5007"
+    environment:
+      - FLASK_ENV=development

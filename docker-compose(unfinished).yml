@@ -1,0 +1,145 @@
+version: "3.8"
+
+services:
+  # Traefik service acting as a reverse proxy and load balancer
+  traefik:
+    image: traefik:v2.5
+    command:
+      - "--api.insecure=true" # Enable the Traefik dashboard (insecure mode)
+      - "--providers.docker.swarmmode=true" # Enable Docker Swarm mode
+      - "--entrypoints.web.address=:80" # Define the entry point for HTTP traffic
+    ports:
+      - "80:80" # Expose port 80 for HTTP traffic
+      - "8080:8080" # Expose port 8080 for the Traefik dashboard
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock" # Mount Docker socket to allow Traefik to communicate with the Docker daemon
+    networks:
+      - web # Attach Traefik to the 'web' network
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager # Ensure Traefik runs only on manager nodes
+
+  # RabbitMQ service for message brokering
+  amqp:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672" # Expose port 5672 for AMQP traffic
+      - "15672:15672" # Expose port 15672 for RabbitMQ management UI
+    networks:
+      - web # Attach RabbitMQ to the 'web' network
+
+  # Customer microservice
+  customer:
+    build:
+      context: ./customer
+      dockerfile: Dockerfile
+    environment:
+      - FLASK_ENV=development # Set Flask environment to development
+    labels:
+      - "traefik.http.routers.customer.rule=Host(`customer.localhost`)" # Define routing rule for Traefik
+      - "traefik.http.services.customer.loadbalancer.server.port=5001" # Define the internal port for the service
+    networks:
+      - web # Attach Customer service to the 'web' network
+    deploy:
+      replicas: 3 # Deploy 3 replicas of the Customer service
+
+  # Order microservice
+  order:
+    build:
+      context: ./order
+      dockerfile: Dockerfile
+    environment:
+      - FLASK_ENV=development # Set Flask environment to development
+      - DB_HOST=host.docker.internal # Set database host
+    depends_on:
+      - amqp # Ensure RabbitMQ service is started before Order service
+    labels:
+      - "traefik.http.routers.order.rule=Host(`order.localhost`)" # Define routing rule for Traefik
+      - "traefik.http.services.order.loadbalancer.server.port=5002" # Define the internal port for the service
+    networks:
+      - web # Attach Order service to the 'web' network
+    deploy:
+      replicas: 3 # Deploy 3 replicas of the Order service
+
+  # Delivery microservice
+  delivery:
+    build:
+      context: ./delivery
+      dockerfile: Dockerfile
+    environment:
+      - FLASK_ENV=development # Set Flask environment to development
+      - DB_HOST=host.docker.internal # Set database host
+    depends_on:
+      - amqp # Ensure RabbitMQ service is started before Delivery service
+    labels:
+      - "traefik.http.routers.delivery.rule=Host(`delivery.localhost`)" # Define routing rule for Traefik
+      - "traefik.http.services.delivery.loadbalancer.server.port=5003" # Define the internal port for the service
+    networks:
+      - web # Attach Delivery service to the 'web' network
+    deploy:
+      replicas: 3 # Deploy 3 replicas of the Delivery service
+
+  # Recommendation microservice
+  recommendation:
+    build:
+      context: ./recommendation
+      dockerfile: Dockerfile
+    environment:
+      - FLASK_ENV=development # Set Flask environment to development
+    labels:
+      - "traefik.http.routers.recommendation.rule=Host(`recommendation.localhost`)" # Define routing rule for Traefik
+      - "traefik.http.services.recommendation.loadbalancer.server.port=5004" # Define the internal port for the service
+    networks:
+      - web # Attach Recommendation service to the 'web' network
+    deploy:
+      replicas: 3 # Deploy 3 replicas of the Recommendation service
+
+  # Make Purchase microservice
+  make_purchase:
+    build:
+      context: ./make_purchase
+      dockerfile: Dockerfile
+    environment:
+      - FLASK_ENV=development # Set Flask environment to development
+    labels:
+      - "traefik.http.routers.make_purchase.rule=Host(`make_purchase.localhost`)" # Define routing rule for Traefik
+      - "traefik.http.services.make_purchase.loadbalancer.server.port=5005" # Define the internal port for the service
+    networks:
+      - web # Attach Make Purchase service to the 'web' network
+    deploy:
+      replicas: 3 # Deploy 3 replicas of the Make Purchase service
+
+  # Make Refund microservice
+  make_refund:
+    build:
+      context: ./make_refund
+      dockerfile: Dockerfile
+    environment:
+      - FLASK_ENV=development # Set Flask environment to development
+    labels:
+      - "traefik.http.routers.make_refund.rule=Host(`make_refund.localhost`)" # Define routing rule for Traefik
+      - "traefik.http.services.make_refund.loadbalancer.server.port=5006" # Define the internal port for the service
+    networks:
+      - web # Attach Make Refund service to the 'web' network
+    deploy:
+      replicas: 3 # Deploy 3 replicas of the Make Refund service
+
+  # Make Recommendation microservice
+  make_recommendation:
+    build:
+      context: ./make_recommendation
+      dockerfile: Dockerfile
+    environment:
+      - FLASK_ENV=development # Set Flask environment to development
+    labels:
+      - "traefik.http.routers.make_recommendation.rule=Host(`make_recommendation.localhost`)" # Define routing rule for Traefik
+      - "traefik.http.services.make_recommendation.loadbalancer.server.port=5007" # Define the internal port for the service
+    networks:
+      - web # Attach Make Recommendation service to the 'web' network
+    deploy:
+      replicas: 3 # Deploy 3 replicas of the Make Recommendation service
+
+networks:
+  web:
+    driver: overlay # Use overlay network driver for inter-service communication
