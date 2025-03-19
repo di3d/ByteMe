@@ -1,77 +1,85 @@
-version: "3.8"
+version: "3.8" # Specify the Docker Compose file format version
 
 services:
+  # RabbitMQ service for message brokering
   amqp:
-    image: rabbitmq:3-management
+    image: rabbitmq:3-management # Use RabbitMQ with the management plugin
     ports:
-      - "5672:5672"
-      - "15672:15672" # Management UI
+      - "5672:5672" # Expose port 5672 for AMQP traffic
+      - "15672:15672" # Expose port 15672 for RabbitMQ management UI
 
+  # Customer microservice
   customer:
     build:
-      context: ./customer
-      dockerfile: Dockerfile
+      context: ./customer # Path to the Customer service's Dockerfile
+      dockerfile: Dockerfile # Specify the Dockerfile to use
     ports:
-      - "5001:5001"
+      - "5001:5001" # Map port 5001 for the Customer service
     environment:
-      - FLASK_ENV=development
+      - FLASK_ENV=development # Set Flask environment to development
 
+  # Order microservice
   order:
     build:
-      context: ./order
-      dockerfile: Dockerfile
+      context: ./order # Path to the Order service's Dockerfile
+      dockerfile: Dockerfile # Specify the Dockerfile to use
     ports:
-      - "5002:5002"
+      - "5002:5002" # Map port 5002 for the Order service
     environment:
-      - FLASK_ENV=development
-      - DB_HOST=host.docker.internal
+      - FLASK_ENV=development # Set Flask environment to development
+      - DB_HOST=host.docker.internal # Set the database host to the internal Docker host
     depends_on:
-      - amqp
+      - amqp # Ensure RabbitMQ service is started before the Order service
 
+  # Delivery microservice
   delivery:
     build:
-      context: ./delivery
-      dockerfile: Dockerfile
+      context: ./delivery # Path to the Delivery service's Dockerfile
+      dockerfile: Dockerfile # Specify the Dockerfile to use
     ports:
-      - "5003:5003"
+      - "5003:5003" # Map port 5003 for the Delivery service
     environment:
-      - FLASK_ENV=development
-      - DB_HOST=host.docker.internal
+      - FLASK_ENV=development # Set Flask environment to development
+      - DB_HOST=host.docker.internal # Set the database host to the internal Docker host
     depends_on:
-      - amqp
+      - amqp # Ensure RabbitMQ service is started before the Delivery service
 
+  # Recommendation microservice
   recommendation:
     build:
-      context: ./recommendation
-      dockerfile: Dockerfile
+      context: ./recommendation # Path to the Recommendation service's Dockerfile
+      dockerfile: Dockerfile # Specify the Dockerfile to use
     ports:
-      - "5004:5004"
+      - "5004:5004" # Map port 5004 for the Recommendation service
     environment:
-      - FLASK_ENV=development
+      - FLASK_ENV=development # Set Flask environment to development
 
+  # Make Purchase microservice
   make_purchase:
     build:
-      context: ./make_purchase
-      dockerfile: Dockerfile
+      context: ./make_purchase # Path to the Make Purchase service's Dockerfile
+      dockerfile: Dockerfile # Specify the Dockerfile to use
     ports:
-      - "5005:5005"
+      - "5005:5005" # Map port 5005 for the Make Purchase service
     environment:
-      - FLASK_ENV=development
+      - FLASK_ENV=development # Set Flask environment to development
 
+  # Make Refund microservice
   make_refund:
     build:
-      context: ./make_refund
-      dockerfile: Dockerfile
+      context: ./make_refund # Path to the Make Refund service's Dockerfile
+      dockerfile: Dockerfile # Specify the Dockerfile to use
     ports:
-      - "5006:5006"
+      - "5006:5006" # Map port 5006 for the Make Refund service
     environment:
-      - FLASK_ENV=development
+      - FLASK_ENV=development # Set Flask environment to development
 
+  # Make Recommendation microservice
   make_recommendation:
     build:
-      context: ./make_recommendation
-      dockerfile: Dockerfile
+      context: ./make_recommendation # Path to the Make Recommendation service's Dockerfile
+      dockerfile: Dockerfile # Specify the Dockerfile to use
     ports:
-      - "5007:5007"
+      - "5007:5007" # Map port 5007 for the Make Recommendation service
     environment:
-      - FLASK_ENV=development
+      - FLASK_ENV=development # Set Flask environment to development
