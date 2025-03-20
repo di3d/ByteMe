@@ -19,9 +19,9 @@ if RUNNING_IN_DOCKER:
     DB_PORT = "5432"
 else:
     DB_HOST = "localhost"  # Local environment
-    DB_PORT = "5433"
+    DB_PORT = "5432"
 
-DB_NAME = os.getenv("DB_NAME", "recommendation")
+DB_NAME = os.getenv("DB_NAME", "recommendation_db")
 DB_USER = os.getenv("DB_USER", "postgres")
 DB_PASS = os.getenv("DB_PASS", "iloveESD123")
 

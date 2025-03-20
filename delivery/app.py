@@ -1,12 +1,3 @@
-import sys
-import os
-
-# Add the path to amqp_setup.py for local testing
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../amqp')))
-
-# Always import amqp_setup
-import amqp_setup
-
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
@@ -14,9 +5,15 @@ from flask_migrate import Migrate
 import pika
 import uuid
 from datetime import datetime
+import sys
 import os
 import json
-from sqlalchemy.dialects.postgresql import JSON
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../amqp')))
+
+# Check if we should skip AMQP setup
+if not os.getenv('SKIP_AMQP_SETUP'):
+    import amqp_setup
 
 app = Flask(__name__)
 CORS(app)
@@ -28,11 +25,13 @@ RUNNING_IN_DOCKER = os.getenv("RUNNING_IN_DOCKER", "false").lower() == "true"
 if RUNNING_IN_DOCKER:
     DB_HOST = "postgres"  # Docker network name
     DB_PORT = "5432"
+
 else:
     DB_HOST = "localhost"  # Local environment
-    DB_PORT = "5433"
+    DB_PORT = "5432"
 
-DB_NAME = os.getenv("DB_NAME", "order")
+DB_PORT = "5432"
+DB_NAME = os.getenv("DB_NAME", "delivery_db")
 DB_USER = os.getenv("DB_USER", "postgres")
 DB_PASS = os.getenv("DB_PASS", "iloveESD123")
 
@@ -43,28 +42,28 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 
-# Define the Order model
-class Order(db.Model):
+# Define the Delivery model
+class Delivery(db.Model):
     id = db.Column(db.String, primary_key=True)
+    order_id = db.Column(db.String, nullable=False)
     customer_id = db.Column(db.String, nullable=False)
-    parts_list = db.Column(JSON, nullable=False)
+    parts_list = db.Column(db.Text, nullable=False)  # Store as JSON string
     timestamp = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    status = db.Column(db.String, nullable=False, default="pending")
 
-@app.route("/order/<string:order_id>", methods=['GET'])
-def get_order(order_id):
-    # Retrieve order from PostgreSQL
-    order = Order.query.get(order_id)
-    if order:
+@app.route("/delivery/<string:delivery_id>", methods=['GET'])
+def get_delivery(delivery_id):
+    # Retrieve delivery from PostgreSQL
+    delivery = Delivery.query.get(delivery_id)
+    if delivery:
         return jsonify(
             {
                 "code": 200,
                 "data": {
-                    "order_id": order.id,
-                    "customer_id": order.customer_id,
-                    "parts_list": order.parts_list,
-                    "timestamp": order.timestamp.isoformat(),
-                    "status": order.status
+                    "delivery_id": delivery.id,
+                    "order_id": delivery.order_id,
+                    "customer_id": delivery.customer_id,
+                    "parts_list": json.loads(delivery.parts_list),  # Deserialize JSON string
+                    "timestamp": delivery.timestamp.isoformat()
                 }
             }
         ), 200
@@ -72,17 +71,17 @@ def get_order(order_id):
         return jsonify(
             {
                 "code": 404,
-                "message": "Order not found"
+                "message": "Delivery not found"
             }
         ), 404
 
-@app.route("/order", methods=['POST'])
-def create_order():
+@app.route("/delivery", methods=['POST'])
+def create_delivery():
     try:
-        data = request.get_json()  # Extract JSON data passed in when user creates an order
+        data = request.get_json()  # Extract JSON data passed in when user creates a delivery
         
-        # Validate fields to be passed on to order JSON format
-        required_fields = ["customer_id", "parts_list"]
+        # Validate fields to be passed on to delivery JSON format
+        required_fields = ["order_id", "customer_id", "parts_list"]
         for field in required_fields:
             if field not in data:
                 return jsonify(
@@ -92,26 +91,26 @@ def create_order():
                     }
                 ), 400
                 
-        # Create a new order
-        new_order = Order(
+        # Create a new delivery
+        new_delivery = Delivery(
             id=str(uuid.uuid4()),
+            order_id=data["order_id"],
             customer_id=data["customer_id"],
-            parts_list=data["parts_list"],
-            status="pending"
+            parts_list=json.dumps(data["parts_list"])  # Serialize to JSON string
         )
-        db.session.add(new_order)
+        db.session.add(new_delivery)
         db.session.commit()
         
         return jsonify(
             {
                 "code": 201,
-                "message": "Order created successfully",
+                "message": "Delivery created successfully",
                 "data": {
-                    "order_id": new_order.id,
-                    "customer_id": new_order.customer_id,
-                    "parts_list": new_order.parts_list,
-                    "timestamp": new_order.timestamp.isoformat(),
-                    "status": new_order.status
+                    "delivery_id": new_delivery.id,
+                    "order_id": new_delivery.order_id,
+                    "customer_id": new_delivery.customer_id,
+                    "parts_list": json.loads(new_delivery.parts_list),  # Deserialize JSON string
+                    "timestamp": new_delivery.timestamp.isoformat()
                 }
             }
         ), 201
@@ -119,29 +118,28 @@ def create_order():
     except Exception as e:
         return jsonify({"code": 500, "message": str(e)}), 500
 
-def store_order_to_db(data):
-    # Generate a unique order_id
-    order_id = str(uuid.uuid4())
-    order_date = datetime.utcnow().isoformat()
+def store_delivery_to_db(data):
+    # Generate a unique delivery_id
+    delivery_id = str(uuid.uuid4())
     
     # Structure the received data in JSON format to store to PostgreSQL
-    new_order = Order(
-        id=order_id,
+    new_delivery = Delivery(
+        id=delivery_id,
+        order_id=data["order_id"],
         customer_id=data["customer_id"],
-        parts_list=data.get("parts_list", "N/A"),
-        timestamp=order_date,
-        status="pending"
+        parts_list=json.dumps(data.get("parts_list", "N/A")),  # Serialize to JSON string
+        timestamp=datetime.utcnow()
     )
-    db.session.add(new_order)
+    db.session.add(new_delivery)
     db.session.commit()
 
 def callback(channel, method, properties, body):
-    # Processes incoming orders and stores them in PostgreSQL
+    # Processes incoming deliveries and stores them in PostgreSQL
     try:
         data = json.loads(body)
-        store_order_to_db(data)
+        store_delivery_to_db(data)
         channel.basic_ack(delivery_tag=method.delivery_tag)  # Acknowledge message
-        print("Order stored to PostgreSQL successfully")
+        print("Update to PostgreSQL successful")
         
     except Exception as e:
         print(f"Unable to parse JSON: {e=}")
@@ -163,7 +161,7 @@ def start_consumer():
     channel.start_consuming()
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5002)
+    app.run(host='0.0.0.0', port=5003)
     try:
         start_consumer()
     except Exception as exception:

@@ -23,4 +23,4 @@ COPY . .
 EXPOSE 5000
 
 # Ensure migrations run before starting the service
-CMD ["sh", "-c", "flask db upgrade && python Customer.py"]
+CMD ["sh", "-c", "flask db upgrade && flask run --host=0.0.0.0 --port=5000"]
