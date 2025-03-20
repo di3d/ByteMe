@@ -22,5 +22,5 @@ COPY . .
 # Expose the port the app runs on
 EXPOSE 5000
 
-# Command to run the application
-CMD ["python", "Customer.py"]
+# Ensure migrations run before starting the service
+CMD ["sh", "-c", "flask db upgrade && python Customer.py"]
