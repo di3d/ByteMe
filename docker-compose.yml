@@ -57,6 +57,7 @@ services:
     build:
       context: ./order # Path to the Order service's Dockerfile
       dockerfile: Dockerfile # Specify the Dockerfile to use
+    restart: on-failure  
     ports:
       - "5002:5002" # Map port 5002 for the Order service
     environment:
@@ -66,7 +67,7 @@ services:
       postgres:
         condition: service_healthy
       amqp:
-        condition: service_started
+        condition: service_healthy
     networks:
       - kong-net
 
@@ -75,6 +76,7 @@ services:
     build:
       context: ./delivery # Path to the Delivery service's Dockerfile
       dockerfile: Dockerfile # Specify the Dockerfile to use
+    restart: on-failure
     ports:
       - "5003:5003" # Map port 5003 for the Delivery service
     environment:
@@ -84,7 +86,7 @@ services:
       postgres:
         condition: service_healthy
       amqp:
-        condition: service_started
+        condition: service_healthy
     networks:
       - kong-net
 
@@ -93,6 +95,7 @@ services:
     build:
       context: ./recommendation # Path to the Recommendation service's Dockerfile
       dockerfile: Dockerfile # Specify the Dockerfile to use
+    restart: on-failure
     ports:
       - "5004:5004" # Map port 5004 for the Recommendation service
     environment:
@@ -100,6 +103,8 @@ services:
       - RUNNING_IN_DOCKER=true
     depends_on:
       postgres:
+        condition: service_healthy
+      amqp:
         condition: service_healthy
     networks:
       - kong-net

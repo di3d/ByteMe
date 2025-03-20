@@ -12,8 +12,8 @@ import json
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../amqp')))
 
 # Check if we should skip AMQP setup
-# if not os.getenv('SKIP_AMQP_SETUP'):
-#     import amqp_setup
+if not os.getenv('SKIP_AMQP_SETUP'):
+    import amqp_setup
     
 import amqp_setup
 
@@ -53,28 +53,31 @@ class Delivery(db.Model):
 
 @app.route("/delivery/<string:delivery_id>", methods=['GET'])
 def get_delivery(delivery_id):
-    # Retrieve delivery from PostgreSQL
-    delivery = Delivery.query.get(delivery_id)
-    if delivery:
-        return jsonify(
-            {
-                "code": 200,
-                "data": {
-                    "delivery_id": delivery.id,
-                    "order_id": delivery.order_id,
-                    "customer_id": delivery.customer_id,
-                    "parts_list": json.loads(delivery.parts_list),  # Deserialize JSON string
-                    "timestamp": delivery.timestamp.isoformat()
+    try:
+        # Retrieve delivery from PostgreSQL
+        delivery = Delivery.query.get(delivery_id)
+        if delivery:
+            return jsonify(
+                {
+                    "code": 200,
+                    "data": {
+                        "delivery_id": delivery.id,
+                        "order_id": delivery.order_id,
+                        "customer_id": delivery.customer_id,
+                        "parts_list": json.loads(delivery.parts_list),  # Deserialize JSON string
+                        "timestamp": delivery.timestamp.isoformat()
+                    }
                 }
-            }
-        ), 200
-    else:
-        return jsonify(
-            {
-                "code": 404,
-                "message": "Delivery not found"
-            }
-        ), 404
+            ), 200
+        else:
+            return jsonify(
+                {
+                    "code": 404,
+                    "message": f"Delivery with ID '{delivery_id}' not found"
+                }
+            ), 404
+    except Exception as e:
+        return jsonify({"code": 500, "message": f"An error occurred: {str(e)}"}), 500
 
 @app.route("/delivery", methods=['POST'])
 def create_delivery():
@@ -91,41 +94,39 @@ def create_delivery():
                         "message": f"Missing required field: {field}"
                     }
                 ), 400
-                
-        # Create a new delivery
-        new_delivery = Delivery(
-            id=str(uuid.uuid4()),
-            order_id=data["order_id"],
-            customer_id=data["customer_id"],
-            parts_list=json.dumps(data["parts_list"])  # Serialize to JSON string
+        
+        # Generate a unique delivery_id
+        delivery_id = str(uuid.uuid4())
+        
+        # Publish the delivery details to RabbitMQ
+        delivery_message = {
+            "delivery_id": delivery_id,  # Include the delivery_id in the message
+            "order_id": data["order_id"],
+            "customer_id": data["customer_id"],
+            "parts_list": data["parts_list"],
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        amqp_setup.publish_message(
+            exchange_name="order_topic",
+            routing_key="delivery.create",
+            message=json.dumps(delivery_message)
         )
-        db.session.add(new_delivery)
-        db.session.commit()
         
         return jsonify(
             {
-                "code": 201,
-                "message": "Delivery created successfully",
-                "data": {
-                    "delivery_id": new_delivery.id,
-                    "order_id": new_delivery.order_id,
-                    "customer_id": new_delivery.customer_id,
-                    "parts_list": json.loads(new_delivery.parts_list),  # Deserialize JSON string
-                    "timestamp": new_delivery.timestamp.isoformat()
-                }
+                "code": 202,
+                "message": "Delivery details sent to RabbitMQ for processing",
+                "data": delivery_message  # Include the delivery_id in the response
             }
-        ), 201
+        ), 202
         
     except Exception as e:
         return jsonify({"code": 500, "message": str(e)}), 500
 
 def store_delivery_to_db(data):
-    # Generate a unique delivery_id
-    delivery_id = str(uuid.uuid4())
-    
     # Structure the received data in JSON format to store to PostgreSQL
     new_delivery = Delivery(
-        id=delivery_id,
+        id=data["delivery_id"],  # Use the delivery_id from the RabbitMQ message
         order_id=data["order_id"],
         customer_id=data["customer_id"],
         parts_list=json.dumps(data.get("parts_list", "N/A")),  # Serialize to JSON string
@@ -135,17 +136,15 @@ def store_delivery_to_db(data):
     db.session.commit()
 
 def callback(channel, method, properties, body):
-    # Processes incoming deliveries and stores them in PostgreSQL
     try:
+        print(f"Received message from RabbitMQ: {body}")  # Debug log
         data = json.loads(body)
         store_delivery_to_db(data)
-        channel.basic_ack(delivery_tag=method.delivery_tag)  # Acknowledge message
-        print("Update to PostgreSQL successful")
-        
+        channel.basic_ack(delivery_tag=method.delivery_tag)
+        print("Delivery stored to PostgreSQL successfully")
     except Exception as e:
-        print(f"Unable to parse JSON: {e=}")
+        print(f"Unable to parse JSON: {e}")
         print(f"Error message: {body}")
-    print()
 
 def start_consumer():
     amqp_setup.check_setup()
@@ -181,10 +180,12 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"Error setting up RabbitMQ: {e}")
 
+    # Start the consumer in a separate thread
+    import threading
+    consumer_thread = threading.Thread(target=start_consumer)
+    consumer_thread.daemon = True
+    consumer_thread.start()
+
     app.run(host="0.0.0.0", port=5003)  # Adjust the port if needed
-    try:
-        start_consumer()
-    except Exception as exception:
-        print(f"  Unable to connect to RabbitMQ.\n     {exception=}\n")
 
 

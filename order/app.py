@@ -102,18 +102,26 @@ def create_order():
         )
         db.session.add(new_order)
         db.session.commit()
-        
+
+        # Publish the order to RabbitMQ
+        order_message = {
+            "order_id": new_order.id,
+            "customer_id": new_order.customer_id,
+            "parts_list": new_order.parts_list,
+            "timestamp": new_order.timestamp.isoformat(),
+            "status": new_order.status
+        }
+        amqp_setup.publish_message(
+            exchange_name="order_topic",
+            routing_key="order.create",
+            message=json.dumps(order_message)
+        )
+
         return jsonify(
             {
                 "code": 201,
                 "message": "Order created successfully",
-                "data": {
-                    "order_id": new_order.id,
-                    "customer_id": new_order.customer_id,
-                    "parts_list": new_order.parts_list,
-                    "timestamp": new_order.timestamp.isoformat(),
-                    "status": new_order.status
-                }
+                "data": order_message
             }
         ), 201
         
@@ -121,44 +129,37 @@ def create_order():
         return jsonify({"code": 500, "message": str(e)}), 500
 
 def store_order_to_db(data):
-    # Generate a unique order_id
-    order_id = str(uuid.uuid4())
-    order_date = datetime.utcnow().isoformat()
-    
-    # Structure the received data in JSON format to store to PostgreSQL
     new_order = Order(
-        id=order_id,
+        id=data["order_id"],
         customer_id=data["customer_id"],
-        parts_list=data.get("parts_list", "N/A"),
-        timestamp=order_date,
-        status="pending"
+        parts_list=data["parts_list"],
+        timestamp=datetime.fromisoformat(data["timestamp"]),
+        status=data["status"]
     )
     db.session.add(new_order)
     db.session.commit()
 
 def callback(channel, method, properties, body):
-    # Processes incoming orders and stores them in PostgreSQL
     try:
         data = json.loads(body)
         store_order_to_db(data)
-        channel.basic_ack(delivery_tag=method.delivery_tag)  # Acknowledge message
+        channel.basic_ack(delivery_tag=method.delivery_tag)
         print("Order stored to PostgreSQL successfully")
-        
     except Exception as e:
-        print(f"Unable to parse JSON: {e=}")
-        print(f"Error message: {body}")
-    print()
+        print(f"Error processing message: {e}")
+        print(f"Message body: {body}")
 
-@app.route("/start_consumer", methods=["POST"])
 def start_consumer():
-    amqp_setup.setup_rabbitmq()  # Set up RabbitMQ only when this endpoint is called
-    return "RabbitMQ consumer started", 200
+    connection, channel = amqp_setup.get_connection_and_channel()
+    channel.basic_consume(queue="Order", on_message_callback=callback, auto_ack=False)
+    print("Starting RabbitMQ consumer...")
+    channel.start_consuming()
 
 if __name__ == '__main__':
+    import threading
+    consumer_thread = threading.Thread(target=start_consumer)
+    consumer_thread.daemon = True
+    consumer_thread.start()
     app.run(host='0.0.0.0', port=5002)
-    try:
-        start_consumer()
-    except Exception as exception:
-        print(f"  Unable to connect to RabbitMQ.\n     {exception=}\n")
 
 

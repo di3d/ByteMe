@@ -94,5 +94,19 @@ def is_connection_open(connection):
         print("AMQP Error:", e)
         print("...creating a new connection.")
         return False
+    
+def publish_message(exchange_name, routing_key, message):
+    try:
+        connection, channel = create_channel()
+        channel.basic_publish(
+            exchange=exchange_name,
+            routing_key=routing_key,
+            body=message,
+            properties=pika.BasicProperties(delivery_mode=2)  # Make message persistent
+        )
+        print(f"Message published to exchange '{exchange_name}' with routing key '{routing_key}': {message}")
+        connection.close()
+    except Exception as e:
+        print(f"Failed to publish message: {e}")
 
 setup_rabbitmq()
