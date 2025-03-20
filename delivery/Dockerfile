@@ -1,11 +1,11 @@
 # Use the official Python image as the base image
 FROM python:3.9-slim
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    libpq-dev \
-    && rm -rf /var/lib/apt/lists/*
+# # Install system dependencies
+# RUN apt-get update && apt-get install -y \
+#     build-essential \
+#     libpq-dev \
+#     && rm -rf /var/lib/apt/lists/*
 
 # Create and change to the app directory
 WORKDIR /usr/src/app
@@ -18,18 +18,10 @@ RUN python -m pip install --no-cache-dir -r requirements.txt
 
 # Copy the rest of the application code
 COPY . .
-COPY ../amqp ./amqp
-
-# Set environment variable for Flask
-ENV FLASK_APP=Delivery.py
-
-# Run database migrations
-RUN flask db init || true
-RUN flask db migrate -m "Initial migration." || true
-RUN flask db upgrade || true
+# COPY ../amqp/amqp_setup.py ./amqp_setup.py
 
 # Expose the port the app runs on
 EXPOSE 5003
 
-# Command to run the application
-CMD ["flask", "run", "--host=0.0.0.0", "--port=5003"]
+# Ensure migrations run before starting the service
+CMD ["sh", "-c", "flask db upgrade && flask run --host=0.0.0.0 --port=5003"]

@@ -1,0 +1,56 @@
+version: "3.8" # Specify the Docker Compose file format version
+
+services:
+  # PostgreSQL for Customer microservice
+  postgres_customer:
+    image: postgres:17.4 # Use PostgreSQL version 17.4
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: iloveESD123
+      POSTGRES_DB: customer # Database name matches the microservice
+    ports:
+      - "5433:5432" # Expose PostgreSQL on port 5433 for Customer
+    volumes:
+      - postgres_customer_data:/var/lib/postgresql/data # Persist data
+
+  # PostgreSQL for Order microservice
+  postgres_order:
+    image: postgres:17.4 # Use PostgreSQL version 17.4
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: iloveESD123
+      POSTGRES_DB: order # Database name matches the microservice
+    ports:
+      - "5434:5432" # Expose PostgreSQL on port 5434 for Order
+    volumes:
+      - postgres_order_data:/var/lib/postgresql/data # Persist data
+
+  # PostgreSQL for Delivery microservice
+  postgres_delivery:
+    image: postgres:17.4 # Use PostgreSQL version 17.4
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: iloveESD123
+      POSTGRES_DB: delivery # Database name matches the microservice
+    ports:
+      - "5435:5432" # Expose PostgreSQL on port 5435 for Delivery
+    volumes:
+      - postgres_delivery_data:/var/lib/postgresql/data # Persist data
+
+  # PostgreSQL for Recommendation microservice
+  postgres_recommendation:
+    image: postgres:17.4 # Use PostgreSQL version 17.4
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: iloveESD123
+      POSTGRES_DB: recommendation # Database name matches the microservice
+    ports:
+      - "5436:5432" # Expose PostgreSQL on port 5436 for Recommendation
+    volumes:
+      - postgres_recommendation_data:/var/lib/postgresql/data # Persist data
+
+volumes:
+  postgres_customer_data:
+  postgres_order_data:
+  postgres_delivery_data:
+  postgres_recommendation_data:

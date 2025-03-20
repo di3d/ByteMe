@@ -1,12 +1,34 @@
-version: "3.8" # Specify the Docker Compose file format version
-
 services:
   # RabbitMQ service for message brokering
   amqp:
     image: rabbitmq:3-management # Use RabbitMQ with the management plugin
     ports:
-      - "5672:5672" # Expose port 5672 for AMQP traffic
-      - "15672:15672" # Expose port 15672 for RabbitMQ management UI
+      - "5673:5672" # Map RabbitMQ's internal port 5672 to 5673 on the host
+      - "15673:15672" # Map RabbitMQ's management UI port 15672 to 15673 on the host
+
+  # PostgreSQL service for atomic microservices
+  postgres:
+    build:
+      context: ./database # Path to the database directory
+      dockerfile: Dockerfile # Specify the Dockerfile to use
+    container_name: postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: iloveESD123
+      POSTGRES_MULTIPLE_DATABASES: customer_db, order_db, delivery_db, recommendation_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/create-multiple-postgresql-databases.sh:/docker-entrypoint-initdb.d/create-multiple-postgresql-databases.sh
+    ports:
+      - "5433:5432" # Map local port 5433 to container port 5432
+    healthcheck: # Needed to initialize all databases initially
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      retries: 10
+      start_period: 10s
+    restart: on-failure
+    networks:
+      - kong-net
 
   # Customer microservice
   customer:
@@ -17,6 +39,11 @@ services:
       - "5001:5001" # Map port 5001 for the Customer service
     environment:
       - FLASK_ENV=development # Set Flask environment to development
+      - FLASK_APP=Customer.py # Specify the Flask app file
+      - RUNNING_IN_DOCKER=true
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   # Order microservice
   order:
@@ -27,9 +54,13 @@ services:
       - "5002:5002" # Map port 5002 for the Order service
     environment:
       - FLASK_ENV=development # Set Flask environment to development
-      - DB_HOST=host.docker.internal # Set the database host to the internal Docker host
+      - FLASK_APP=Order.py # Specify the Flask app file
+      - RUNNING_IN_DOCKER=true
     depends_on:
-      - amqp # Ensure RabbitMQ service is started before the Order service
+      postgres:
+        condition: service_healthy
+      amqp:
+        condition: service_started
 
   # Delivery microservice
   delivery:
@@ -40,9 +71,13 @@ services:
       - "5003:5003" # Map port 5003 for the Delivery service
     environment:
       - FLASK_ENV=development # Set Flask environment to development
-      - DB_HOST=host.docker.internal # Set the database host to the internal Docker host
+      - FLASK_APP=Delivery.py # Specify the Flask app file
+      - RUNNING_IN_DOCKER=true
     depends_on:
-      - amqp # Ensure RabbitMQ service is started before the Delivery service
+      postgres:
+        condition: service_healthy
+      amqp:
+        condition: service_started
 
   # Recommendation microservice
   recommendation:
@@ -53,33 +88,47 @@ services:
       - "5004:5004" # Map port 5004 for the Recommendation service
     environment:
       - FLASK_ENV=development # Set Flask environment to development
+      - FLASK_APP=Recommendation.py # Specify the Flask app file
+      - RUNNING_IN_DOCKER=true
+    depends_on:
+      postgres:
+        condition: service_healthy
 
-  # Make Purchase microservice
-  make_purchase:
-    build:
-      context: ./make_purchase # Path to the Make Purchase service's Dockerfile
-      dockerfile: Dockerfile # Specify the Dockerfile to use
-    ports:
-      - "5005:5005" # Map port 5005 for the Make Purchase service
-    environment:
-      - FLASK_ENV=development # Set Flask environment to development
+  # # Make Purchase microservice
+  # make_purchase:
+  #   build:
+  #     context: ./make_purchase # Path to the Make Purchase service's Dockerfile
+  #     dockerfile: Dockerfile # Specify the Dockerfile to use
+  #   ports:
+  #     - "5005:5005" # Map port 5005 for the Make Purchase service
+  #   environment:
+  #     - FLASK_ENV=development # Set Flask environment to development
+  #     - RUNNING_IN_DOCKER=true
 
-  # Make Refund microservice
-  make_refund:
-    build:
-      context: ./make_refund # Path to the Make Refund service's Dockerfile
-      dockerfile: Dockerfile # Specify the Dockerfile to use
-    ports:
-      - "5006:5006" # Map port 5006 for the Make Refund service
-    environment:
-      - FLASK_ENV=development # Set Flask environment to development
+  # # Make Refund microservice
+  # make_refund:
+  #   build:
+  #     context: ./make_refund # Path to the Make Refund service's Dockerfile
+  #     dockerfile: Dockerfile # Specify the Dockerfile to use
+  #   ports:
+  #     - "5006:5006" # Map port 5006 for the Make Refund service
+  #   environment:
+  #     - FLASK_ENV=development # Set Flask environment to development
+  #     - RUNNING_IN_DOCKER=true
 
-  # Make Recommendation microservice
-  make_recommendation:
-    build:
-      context: ./make_recommendation # Path to the Make Recommendation service's Dockerfile
-      dockerfile: Dockerfile # Specify the Dockerfile to use
-    ports:
-      - "5007:5007" # Map port 5007 for the Make Recommendation service
-    environment:
-      - FLASK_ENV=development # Set Flask environment to development
+  # # Make Recommendation microservice
+  # make_recommendation:
+  #   build:
+  #     context: ./make_recommendation # Path to the Make Recommendation service's Dockerfile
+  #     dockerfile: Dockerfile # Specify the Dockerfile to use
+  #   ports:
+  #     - "5007:5007" # Map port 5007 for the Make Recommendation service
+  #   environment:
+  #     - FLASK_ENV=development # Set Flask environment to development
+  #     - RUNNING_IN_DOCKER=true
+
+volumes:
+  postgres_data:
+
+networks:
+  kong-net:

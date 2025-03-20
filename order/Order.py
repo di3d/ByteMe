@@ -1,3 +1,12 @@
+import sys
+import os
+
+# Add the path to amqp_setup.py for local testing
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../amqp')))
+
+# Always import amqp_setup
+import amqp_setup
+
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
@@ -5,24 +14,30 @@ from flask_migrate import Migrate
 import pika
 import uuid
 from datetime import datetime
-import sys
 import os
 import json
 from sqlalchemy.dialects.postgresql import JSON
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../amqp')))
-
-# Check if we should skip AMQP setup
-if not os.getenv('SKIP_AMQP_SETUP'):
-    import amqp_setup
-
 app = Flask(__name__)
 CORS(app)
 
-# Database configuration
-db_host = os.getenv('DB_HOST', 'localhost')
-app.config['SQLALCHEMY_DATABASE_URI'] = f'postgresql://postgres:iloveESD123@{db_host}:5432/order'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+# Detect if running inside Docker
+RUNNING_IN_DOCKER = os.getenv("RUNNING_IN_DOCKER", "false").lower() == "true"
+
+# Set Database Configuration Dynamically
+if RUNNING_IN_DOCKER:
+    DB_HOST = "postgres"  # Docker network name
+    DB_PORT = "5432"
+else:
+    DB_HOST = "localhost"  # Local environment
+    DB_PORT = "5433"
+
+DB_NAME = os.getenv("DB_NAME", "order")
+DB_USER = os.getenv("DB_USER", "postgres")
+DB_PASS = os.getenv("DB_PASS", "iloveESD123")
+
+app.config["SQLALCHEMY_DATABASE_URI"] = f"postgresql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 # Initialize the database
 db = SQLAlchemy(app)

@@ -18,10 +18,23 @@ if not os.getenv('SKIP_AMQP_SETUP'):
 app = Flask(__name__)
 CORS(app)
 
-# Database configuration
-db_host = os.getenv('DB_HOST', 'localhost')
-app.config['SQLALCHEMY_DATABASE_URI'] = f'postgresql://postgres:iloveESD123@{db_host}:5432/delivery'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+# Detect if running inside Docker
+RUNNING_IN_DOCKER = os.getenv("RUNNING_IN_DOCKER", "false").lower() == "true"
+
+# Set Database Configuration Dynamically
+if RUNNING_IN_DOCKER:
+    DB_HOST = "postgres"  # Docker network name
+    DB_PORT = "5432"
+else:
+    DB_HOST = "localhost"  # Local environment
+    DB_PORT = "5433"
+
+DB_NAME = os.getenv("DB_NAME", "delivery")
+DB_USER = os.getenv("DB_USER", "postgres")
+DB_PASS = os.getenv("DB_PASS", "iloveESD123")
+
+app.config["SQLALCHEMY_DATABASE_URI"] = f"postgresql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 # Initialize the database
 db = SQLAlchemy(app)

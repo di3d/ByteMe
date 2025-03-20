@@ -19,16 +19,8 @@ RUN python -m pip install --no-cache-dir -r requirements.txt
 # Copy the rest of the application code
 COPY . .
 
-# Set environment variable for Flask
-ENV FLASK_APP=Recommendation.py
-
-# Run database migrations
-RUN flask db init || true
-RUN flask db migrate -m "Initial migration." || true
-RUN flask db upgrade || true
-
 # Expose the port the app runs on
 EXPOSE 5004
 
-# Command to run the application
-CMD ["flask", "run", "--host=0.0.0.0", "--port=5004"]
+# Ensure migrations run before starting the service
+CMD ["sh", "-c", "flask db upgrade && flask run --host=0.0.0.0 --port=5004"]
