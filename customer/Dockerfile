@@ -20,7 +20,10 @@ RUN python -m pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Expose the port the app runs on
-EXPOSE 5000
+EXPOSE 5001
+
+# Set the FLASK_APP environment variable
+ENV FLASK_APP=app.py
 
 # Ensure migrations run before starting the service
-CMD ["sh", "-c", "flask db upgrade && flask run --host=0.0.0.0 --port=5000"]
+CMD ["sh", "-c", "flask db upgrade && flask run --host=0.0.0.0 --port=5001"]

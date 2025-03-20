@@ -7,7 +7,7 @@ charset-normalizer
 click
 colorama
 cryptography
-Flask
+flask
 flask-cors
 flask-migrate
 flask-sqlalchemy

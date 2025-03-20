@@ -12,8 +12,10 @@ import json
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../amqp')))
 
 # Check if we should skip AMQP setup
-if not os.getenv('SKIP_AMQP_SETUP'):
-    import amqp_setup
+# if not os.getenv('SKIP_AMQP_SETUP'):
+#     import amqp_setup
+    
+import amqp_setup
 
 app = Flask(__name__)
 CORS(app)
@@ -23,9 +25,8 @@ RUNNING_IN_DOCKER = os.getenv("RUNNING_IN_DOCKER", "false").lower() == "true"
 
 # Set Database Configuration Dynamically
 if RUNNING_IN_DOCKER:
-    DB_HOST = "postgres"  # Docker network name
-    DB_PORT = "5432"
-
+    DB_HOST = "host.docker.internal"  # Docker network name
+    DB_PORT = "5433"
 else:
     DB_HOST = "localhost"  # Local environment
     DB_PORT = "5432"
@@ -160,8 +161,27 @@ def start_consumer():
     print(f"Delivery Microservice listening on queue: {queue_name}")
     channel.start_consuming()
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5003)
+@app.route("/")
+def health_check():
+    return jsonify({"status": "Delivery microservice is running"}), 200
+
+@app.route("/setup_rabbitmq", methods=["POST"])
+def setup_rabbitmq():
+    try:
+        amqp_setup.setup_rabbitmq()  # Explicitly set up RabbitMQ
+        return jsonify({"message": "RabbitMQ setup completed successfully"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+if __name__ == "__main__":
+    # Optionally, set up RabbitMQ when the app starts
+    try:
+        amqp_setup.setup_rabbitmq()
+        print("RabbitMQ setup completed successfully.")
+    except Exception as e:
+        print(f"Error setting up RabbitMQ: {e}")
+
+    app.run(host="0.0.0.0", port=5003)  # Adjust the port if needed
     try:
         start_consumer()
     except Exception as exception:

@@ -15,8 +15,8 @@ RUNNING_IN_DOCKER = os.getenv("RUNNING_IN_DOCKER", "false").lower() == "true"
 
 # Set Database Configuration Dynamically
 if RUNNING_IN_DOCKER:
-    DB_HOST = "postgres"  # Docker network name
-    DB_PORT = "5432"
+    DB_HOST = "host.docker.internal"  # Docker network name
+    DB_PORT = "5433"
 else:
     DB_HOST = "localhost"  # Local environment
     DB_PORT = "5432"
