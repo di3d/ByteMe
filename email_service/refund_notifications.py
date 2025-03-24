@@ -7,64 +7,6 @@ class RefundNotifications:
     """
     
     @staticmethod
-    def send_refund_initiated(customer_email, refund_data):
-        """
-        Send notification that a refund has been initiated
-        
-        Args:
-            customer_email (str): Customer's email address
-            refund_data (dict): Data about the refund
-                - request_id: Refund request ID
-                - amount: Amount being refunded
-                - payment_id: Original payment ID
-                - currency: Currency code (e.g., 'sgd')
-                - order_id: Optional order reference
-                
-        Returns:
-            dict: Response with status and message
-        """
-        # Check if we should use template or plain text
-        if EmailConfig.TEMPLATE_REFUND_INITIATED:
-            # Use template
-            template_data = {
-                "refund_request_id": refund_data.get("request_id"),
-                "refund_amount": format_amount(refund_data.get("amount"), refund_data.get("currency", "sgd")),
-                "payment_id": refund_data.get("payment_id"),
-                "order_id": refund_data.get("order_id", "N/A")
-            }
-            
-            return EmailService.send_email(
-                customer_email,
-                "Your Refund Request Has Been Received",
-                template_id=EmailConfig.TEMPLATE_REFUND_INITIATED,
-                template_data=template_data
-            )
-        else:
-            # Use plain text
-            content = f"""
-Dear Customer,
-
-We have received your refund request and it is now being processed.
-
-Refund details:
-- Request ID: {refund_data.get("request_id")}
-- Amount: {format_amount(refund_data.get("amount"), refund_data.get("currency", "sgd"))}
-- Payment ID: {refund_data.get("payment_id")}
-{f'- Order ID: {refund_data.get("order_id")}' if refund_data.get("order_id") else ''}
-
-We'll notify you when the refund has been processed. Please allow 5-10 business days for the funds to appear in your account.
-
-Thank you,
-ByteMe Store Team
-            """
-            
-            return EmailService.send_email(
-                customer_email,
-                "Your Refund Request Has Been Received",
-                content=content
-            )
-    
-    @staticmethod
     def send_refund_processed(customer_email, refund_data):
         """
         Send notification that a refund has been processed
