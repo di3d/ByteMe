@@ -10,28 +10,29 @@ import os
 import json
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../amqp')))
-
-# Check if we should skip AMQP setup
-if not os.getenv('SKIP_AMQP_SETUP'):
-    import amqp_setup
-    
 import amqp_setup
 
 app = Flask(__name__)
 CORS(app)
+
+rabbit_host = "localhost"
+rabbit_port = 5672
+exchange_name = "order_topic"
+exchange_type = "topic"
+
 
 # Detect if running inside Docker
 RUNNING_IN_DOCKER = os.getenv("RUNNING_IN_DOCKER", "false").lower() == "true"
 
 # Set Database Configuration Dynamically
 if RUNNING_IN_DOCKER:
-    DB_HOST = "host.docker.internal"  # Docker network name
-    DB_PORT = "5433"
+    DB_HOST = "postgres"  # Docker network name
+    DB_PORT = "5432"
 else:
     DB_HOST = "localhost"  # Local environment
-    DB_PORT = "5432"
+    DB_PORT = "5433"
 
-DB_PORT = "5432"
+
 DB_NAME = os.getenv("DB_NAME", "delivery_db")
 DB_USER = os.getenv("DB_USER", "postgres")
 DB_PASS = os.getenv("DB_PASS", "iloveESD123")
@@ -51,90 +52,26 @@ class Delivery(db.Model):
     parts_list = db.Column(db.Text, nullable=False)  # Store as JSON string
     timestamp = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
-@app.route("/delivery/<string:delivery_id>", methods=['GET'])
-def get_delivery(delivery_id):
-    try:
-        # Retrieve delivery from PostgreSQL
-        delivery = Delivery.query.get(delivery_id)
-        if delivery:
-            return jsonify(
-                {
-                    "code": 200,
-                    "data": {
-                        "delivery_id": delivery.id,
-                        "order_id": delivery.order_id,
-                        "customer_id": delivery.customer_id,
-                        "parts_list": json.loads(delivery.parts_list),  # Deserialize JSON string
-                        "timestamp": delivery.timestamp.isoformat()
-                    }
-                }
-            ), 200
-        else:
-            return jsonify(
-                {
-                    "code": 404,
-                    "message": f"Delivery with ID '{delivery_id}' not found"
-                }
-            ), 404
-    except Exception as e:
-        return jsonify({"code": 500, "message": f"An error occurred: {str(e)}"}), 500
 
-@app.route("/delivery", methods=['POST'])
-def create_delivery():
-    try:
-        data = request.get_json()  # Extract JSON data passed in when user creates a delivery
-        
-        # Validate fields to be passed on to delivery JSON format
-        required_fields = ["order_id", "customer_id", "parts_list"]
-        for field in required_fields:
-            if field not in data:
-                return jsonify(
-                    {
-                        "code": 400, 
-                        "message": f"Missing required field: {field}"
-                    }
-                ), 400
-        
-        # Generate a unique delivery_id
-        delivery_id = str(uuid.uuid4())
-        
-        # Publish the delivery details to RabbitMQ
-        delivery_message = {
-            "delivery_id": delivery_id,  # Include the delivery_id in the message
-            "order_id": data["order_id"],
-            "customer_id": data["customer_id"],
-            "parts_list": data["parts_list"],
-            "timestamp": datetime.utcnow().isoformat()
-        }
-        amqp_setup.publish_message(
-            exchange_name="order_topic",
-            routing_key="delivery.create",
-            message=json.dumps(delivery_message)
-        )
-        
-        return jsonify(
-            {
-                "code": 202,
-                "message": "Delivery details sent to RabbitMQ for processing",
-                "data": delivery_message  # Include the delivery_id in the response
-            }
-        ), 202
-        
-    except Exception as e:
-        return jsonify({"code": 500, "message": str(e)}), 500
-
+"""
+function to strcture the delivery log in json format to store in rtdb
+"""
 def store_delivery_to_db(data):
     # Structure the received data in JSON format to store to PostgreSQL
     new_delivery = Delivery(
-        id=data["delivery_id"],  # Use the delivery_id from the RabbitMQ message
-        order_id=data["order_id"],
-        customer_id=data["customer_id"],
+        id = str(uuid.uuid4()),  #generate a delievry_id
+        order_id = data["order_id"],
+        customer_id = data["customer_id"],
         parts_list=json.dumps(data.get("parts_list", "N/A")),  # Serialize to JSON string
         timestamp=datetime.utcnow()
     )
     db.session.add(new_delivery)
     db.session.commit()
-
+    
+    
+"""
+callback function to process the message from the queue
+"""
 def callback(channel, method, properties, body):
     try:
         print(f"Received message from RabbitMQ: {body}")  # Debug log
@@ -145,7 +82,11 @@ def callback(channel, method, properties, body):
     except Exception as e:
         print(f"Unable to parse JSON: {e}")
         print(f"Error message: {body}")
-
+        
+        
+"""
+starts this microservice to listen to the queue for any incoming messags
+"""    
 def start_consumer():
     amqp_setup.check_setup()
     
@@ -159,32 +100,87 @@ def start_consumer():
     
     print(f"Delivery Microservice listening on queue: {queue_name}")
     channel.start_consuming()
+        
 
-@app.route("/")
-def health_check():
-    return jsonify({"status": "Delivery microservice is running"}), 200
+# @app.route("/delivery/<string:delivery_id>", methods=['GET'])
+# def get_delivery(delivery_id):
+#     try:
+#         # Retrieve delivery from PostgreSQL
+#         delivery = Delivery.query.get(delivery_id)
+#         if delivery:
+#             return jsonify(
+#                 {
+#                     "code": 200,
+#                     "data": {
+#                         "delivery_id": delivery.id,
+#                         "order_id": delivery.order_id,
+#                         "customer_id": delivery.customer_id,
+#                         "parts_list": json.loads(delivery.parts_list),  # Deserialize JSON string
+#                         "timestamp": delivery.timestamp.isoformat()
+#                     }
+#                 }
+#             ), 200
+#         else:
+#             return jsonify(
+#                 {
+#                     "code": 404,
+#                     "message": f"Delivery with ID '{delivery_id}' not found"
+#                 }
+#             ), 404
+#     except Exception as e:
+#         return jsonify({"code": 500, "message": f"An error occurred: {str(e)}"}), 500
 
-@app.route("/setup_rabbitmq", methods=["POST"])
-def setup_rabbitmq():
-    try:
-        amqp_setup.setup_rabbitmq()  # Explicitly set up RabbitMQ
-        return jsonify({"message": "RabbitMQ setup completed successfully"}), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+# @app.route("/delivery", methods=['POST'])
+# def create_delivery():
+#     try:
+#         data = request.get_json()  # Extract JSON data passed in when user creates a delivery
+        
+#         # Validate fields to be passed on to delivery JSON format
+#         required_fields = ["order_id", "customer_id", "parts_list"]
+#         for field in required_fields:
+#             if field not in data:
+#                 return jsonify(
+#                     {
+#                         "code": 400, 
+#                         "message": f"Missing required field: {field}"
+#                     }
+#                 ), 400
+        
+#         # Generate a unique delivery_id
+#         delivery_id = str(uuid.uuid4())
+        
+#         # Publish the delivery details to RabbitMQ
+#         delivery_message = {
+#             "delivery_id": delivery_id,  # Include the delivery_id in the message
+#             "order_id": data["order_id"],
+#             "customer_id": data["customer_id"],
+#             "parts_list": data["parts_list"],
+#             "timestamp": datetime.utcnow().isoformat()
+#         }
+#         amqp_setup.publish_message(
+#             exchange_name="order_topic",
+#             routing_key="delivery.create",
+#             message=json.dumps(delivery_message)
+#         )
+        
+#         return jsonify(
+#             {
+#                 "code": 202,
+#                 "message": "Delivery details sent to RabbitMQ for processing",
+#                 "data": delivery_message  # Include the delivery_id in the response
+#             }
+#         ), 202
+        
+#     except Exception as e:
+#         return jsonify({"code": 500, "message": str(e)}), 500
+
 
 if __name__ == "__main__":
-    # Optionally, set up RabbitMQ when the app starts
     try:
-        amqp_setup.setup_rabbitmq()
-        print("RabbitMQ setup completed successfully.")
-    except Exception as e:
-        print(f"Error setting up RabbitMQ: {e}")
-
-    # Start the consumer in a separate thread
-    import threading
-    consumer_thread = threading.Thread(target=start_consumer)
-    consumer_thread.daemon = True
-    consumer_thread.start()
+        start_consumer()
+    
+    except Exception as exception:
+        print(f"  Unable to connect to RabbitMQ.\n     {exception=}\n")
 
     app.run(host="0.0.0.0", port=5003)  # Adjust the port if needed
 

@@ -15,11 +15,11 @@ RUNNING_IN_DOCKER = os.getenv("RUNNING_IN_DOCKER", "false").lower() == "true"
 
 # Set Database Configuration Dynamically
 if RUNNING_IN_DOCKER:
-    DB_HOST = "host.docker.internal"  # Docker network name
-    DB_PORT = "5433"
+    DB_HOST = "postgres"  # Docker network name
+    DB_PORT = "5432"
 else:
     DB_HOST = "localhost"  # Local environment
-    DB_PORT = "5432"
+    DB_PORT = "5433"
 
 DB_NAME = os.getenv("DB_NAME", "recommendation_db")
 DB_USER = os.getenv("DB_USER", "postgres")
@@ -83,7 +83,8 @@ def create_recommendation():
         new_recommendation = Recommendation(
             id=str(uuid.uuid4()),
             customer_id=data["customer_id"],
-            parts_list=json.dumps(data["parts_list"])  # Serialize to JSON string
+            parts_list=json.dumps(data["parts_list"]),  # Serialize to JSON string
+            timestamp=datetime.now().isoformat()
         )
         db.session.add(new_recommendation)
         db.session.commit()
@@ -96,7 +97,7 @@ def create_recommendation():
                     "recommendation_id": new_recommendation.id,
                     "customer_id": new_recommendation.customer_id,
                     "parts_list": json.loads(new_recommendation.parts_list),  # Deserialize JSON string
-                    "timestamp": new_recommendation.timestamp.isoformat()
+                    "timestamp": new_recommendation.timestamp
                 }
             }
         ), 201
