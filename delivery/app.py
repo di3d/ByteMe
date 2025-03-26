@@ -1,187 +1,288 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
-import pika
-import uuid
-from datetime import datetime
-import sys
+import psycopg2
 import os
 import json
-
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../amqp')))
-import amqp_setup
+import uuid
+from datetime import datetime
+from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
 app = Flask(__name__)
 CORS(app)
 
-rabbit_host = "localhost"
-rabbit_port = 5672
-exchange_name = "order_topic"
-exchange_type = "topic"
+# Database connection parameters
+DB_PARAMS = {
+    "dbname": "delivery_db",
+    "user": "esduser",
+    "password": "esduser",
+    "host": "localhost",
+    "port": "5444",
+}
 
-
-# Detect if running inside Docker
-RUNNING_IN_DOCKER = os.getenv("RUNNING_IN_DOCKER", "false").lower() == "true"
-
-# Set Database Configuration Dynamically
-if RUNNING_IN_DOCKER:
-    DB_HOST = "postgres"  # Docker network name
-    DB_PORT = "5432"
-else:
-    DB_HOST = "localhost"  # Local environment
-    DB_PORT = "5433"
-
-
-DB_NAME = os.getenv("DB_NAME", "delivery_db")
-DB_USER = os.getenv("DB_USER", "postgres")
-DB_PASS = os.getenv("DB_PASS", "iloveESD123")
-
-app.config["SQLALCHEMY_DATABASE_URI"] = f"postgresql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-
-# Initialize the database
-db = SQLAlchemy(app)
-migrate = Migrate(app, db)
-
-# Define the Delivery model
-class Delivery(db.Model):
-    id = db.Column(db.String, primary_key=True)
-    order_id = db.Column(db.String, nullable=False)
-    customer_id = db.Column(db.String, nullable=False)
-    parts_list = db.Column(db.Text, nullable=False)  # Store as JSON string
-    timestamp = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-
-
-"""
-function to strcture the delivery log in json format to store in rtdb
-"""
-def store_delivery_to_db(data):
-    # Structure the received data in JSON format to store to PostgreSQL
-    new_delivery = Delivery(
-        id = str(uuid.uuid4()),  #generate a delievry_id
-        order_id = data["order_id"],
-        customer_id = data["customer_id"],
-        parts_list=json.dumps(data.get("parts_list", "N/A")),  # Serialize to JSON string
-        timestamp=datetime.utcnow()
-    )
-    db.session.add(new_delivery)
-    db.session.commit()
-    
-    
-"""
-callback function to process the message from the queue
-"""
-def callback(channel, method, properties, body):
+def ensure_database_exists():
+    """Ensure the delivery_db database exists"""
     try:
-        print(f"Received message from RabbitMQ: {body}")  # Debug log
-        data = json.loads(body)
-        store_delivery_to_db(data)
-        channel.basic_ack(delivery_tag=method.delivery_tag)
-        print("Delivery stored to PostgreSQL successfully")
+        # Connect to the default 'postgres' database to check/create our database
+        conn = psycopg2.connect(
+            dbname="postgres",
+            user=DB_PARAMS["user"],
+            password=DB_PARAMS["password"],
+            host=DB_PARAMS["host"],
+            port=DB_PARAMS["port"]
+        )
+        conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+        cursor = conn.cursor()
+        
+        # Check if database exists
+        cursor.execute("SELECT 1 FROM pg_database WHERE datname = 'delivery_db'")
+        exists = cursor.fetchone()
+        
+        if not exists:
+            print("Creating database 'delivery_db'...")
+            cursor.execute("CREATE DATABASE delivery_db")
+            print("Database 'delivery_db' created successfully")
+        
+        cursor.close()
+        conn.close()
+        
     except Exception as e:
-        print(f"Unable to parse JSON: {e}")
-        print(f"Error message: {body}")
-        
-        
-"""
-starts this microservice to listen to the queue for any incoming messags
-"""    
-def start_consumer():
-    amqp_setup.check_setup()
-    
-    # Use the existing channel from amqp_setup
-    channel = amqp_setup.channel 
-    
-    queue_name = "Delivery"
-    
-    # Start consuming messages from the delivery queue
-    channel.basic_consume(queue=queue_name, on_message_callback=callback)
-    
-    print(f"Delivery Microservice listening on queue: {queue_name}")
-    channel.start_consuming()
-        
+        print(f"Error ensuring database exists: {str(e)}")
+        raise
 
-# @app.route("/delivery/<string:delivery_id>", methods=['GET'])
-# def get_delivery(delivery_id):
-#     try:
-#         # Retrieve delivery from PostgreSQL
-#         delivery = Delivery.query.get(delivery_id)
-#         if delivery:
-#             return jsonify(
-#                 {
-#                     "code": 200,
-#                     "data": {
-#                         "delivery_id": delivery.id,
-#                         "order_id": delivery.order_id,
-#                         "customer_id": delivery.customer_id,
-#                         "parts_list": json.loads(delivery.parts_list),  # Deserialize JSON string
-#                         "timestamp": delivery.timestamp.isoformat()
-#                     }
-#                 }
-#             ), 200
-#         else:
-#             return jsonify(
-#                 {
-#                     "code": 404,
-#                     "message": f"Delivery with ID '{delivery_id}' not found"
-#                 }
-#             ), 404
-#     except Exception as e:
-#         return jsonify({"code": 500, "message": f"An error occurred: {str(e)}"}), 500
+def get_db_connection():
+    """Get connection to our application database"""
+    ensure_database_exists()  # Make sure DB exists before connecting
+    conn = psycopg2.connect(**DB_PARAMS)
+    return conn
 
-# @app.route("/delivery", methods=['POST'])
-# def create_delivery():
-#     try:
-#         data = request.get_json()  # Extract JSON data passed in when user creates a delivery
-        
-#         # Validate fields to be passed on to delivery JSON format
-#         required_fields = ["order_id", "customer_id", "parts_list"]
-#         for field in required_fields:
-#             if field not in data:
-#                 return jsonify(
-#                     {
-#                         "code": 400, 
-#                         "message": f"Missing required field: {field}"
-#                     }
-#                 ), 400
-        
-#         # Generate a unique delivery_id
-#         delivery_id = str(uuid.uuid4())
-        
-#         # Publish the delivery details to RabbitMQ
-#         delivery_message = {
-#             "delivery_id": delivery_id,  # Include the delivery_id in the message
-#             "order_id": data["order_id"],
-#             "customer_id": data["customer_id"],
-#             "parts_list": data["parts_list"],
-#             "timestamp": datetime.utcnow().isoformat()
-#         }
-#         amqp_setup.publish_message(
-#             exchange_name="order_topic",
-#             routing_key="delivery.create",
-#             message=json.dumps(delivery_message)
-#         )
-        
-#         return jsonify(
-#             {
-#                 "code": 202,
-#                 "message": "Delivery details sent to RabbitMQ for processing",
-#                 "data": delivery_message  # Include the delivery_id in the response
-#             }
-#         ), 202
-        
-#     except Exception as e:
-#         return jsonify({"code": 500, "message": str(e)}), 500
-
-
-if __name__ == "__main__":
+def initialize_tables():
+    """Initialize the database tables for delivery service"""
     try:
-        start_consumer()
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Updated table schema with parts_list (JSON) and timestamp
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS deliveries (
+                delivery_id VARCHAR PRIMARY KEY,
+                order_id VARCHAR NOT NULL,
+                customer_id VARCHAR NOT NULL,
+                parts_list JSONB NOT NULL,
+                created_at TIMESTAMP NOT NULL,
+                updated_at TIMESTAMP NOT NULL
+            )
+        """)
+        conn.commit()
+        cursor.close()
+        conn.close()
+        print("Delivery tables initialized successfully")
+    except Exception as e:
+        print(f"Error initializing delivery tables: {str(e)}")
+        raise
+
+@app.route("/delivery/<string:delivery_id>", methods=['GET'])
+def get_delivery(delivery_id):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT delivery_id, order_id, customer_id, parts_list, 
+                   created_at, updated_at
+            FROM deliveries 
+            WHERE delivery_id = %s
+        """, (delivery_id,))
+        delivery_data = cursor.fetchone()
+        
+        cursor.close()
+        conn.close()
+        
+        if delivery_data:
+            return jsonify({
+                "code": 200,
+                "data": {
+                    "delivery_id": delivery_data[0],
+                    "order_id": delivery_data[1],
+                    "customer_id": delivery_data[2],
+                    "parts_list": delivery_data[3],
+                    "created_at": delivery_data[4].isoformat(),
+                    "updated_at": delivery_data[5].isoformat()
+                }
+            }), 200
+        else:
+            return jsonify({
+                "code": 404,
+                "message": "Delivery not found"
+            }), 404
+            
+    except Exception as e:
+        return jsonify({
+            "code": 500,
+            "message": str(e)
+        }), 500
+
+@app.route("/delivery", methods=['POST'])
+def create_delivery():
+    try:
+        data = request.get_json()
+        
+        # Validate fields
+        required_fields = ["order_id", "customer_id", "parts_list"]
+        for field in required_fields:
+            if field not in data:
+                return jsonify({
+                    "code": 400, 
+                    "message": f"Missing required field: {field}"
+                }), 400
+                
+        # Validate parts_list is a list
+        if not isinstance(data["parts_list"], list):
+            return jsonify({
+                "code": 400,
+                "message": "parts_list must be an array"
+            }), 400
+                
+        # Generate delivery_id and timestamp
+        delivery_id = str(uuid.uuid4())
+        current_time = datetime.now()
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Create new delivery with auto-generated fields
+        cursor.execute(
+            """
+            INSERT INTO deliveries (
+                delivery_id, order_id, customer_id, parts_list,
+                created_at, updated_at
+            ) VALUES (%s, %s, %s, %s::jsonb, %s, %s)
+            RETURNING *
+            """,
+            (
+                delivery_id,
+                data["order_id"],
+                data["customer_id"],
+                json.dumps(data["parts_list"]),  # Convert list to JSON string
+                current_time,
+                current_time
+            )
+        )
+        
+        new_delivery = cursor.fetchone()
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            "code": 201,
+            "message": "Delivery created successfully",
+            "data": {
+                "delivery_id": new_delivery[0],
+                "order_id": new_delivery[1],
+                "customer_id": new_delivery[2],
+                "parts_list": new_delivery[3],
+                "created_at": new_delivery[4].isoformat(),
+                "updated_at": new_delivery[5].isoformat()
+            }
+        }), 201
+        
+    except Exception as e:
+        if 'conn' in locals():
+            conn.rollback()
+            if 'cursor' in locals():
+                cursor.close()
+            conn.close()
+        return jsonify({
+            "code": 500,
+            "message": str(e)
+        }), 500
+
+@app.route("/delivery/<string:delivery_id>", methods=['PUT'])
+def update_delivery(delivery_id):
+    try:
+        data = request.get_json()
+        current_time = datetime.now()
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Update only the fields that are provided
+        update_fields = []
+        update_values = []
+        
+        if "order_id" in data:
+            update_fields.append("order_id = %s")
+            update_values.append(data["order_id"])
+            
+        if "customer_id" in data:
+            update_fields.append("customer_id = %s")
+            update_values.append(data["customer_id"])
+            
+        if "parts_list" in data:
+            update_fields.append("parts_list = %s")
+            update_values.append(data["parts_list"])
+        
+        # Always update the updated_at timestamp
+        update_fields.append("updated_at = %s")
+        update_values.append(current_time)
+        
+        if not update_fields:
+            return jsonify({
+                "code": 400,
+                "message": "No fields to update"
+            }), 400
+            
+        update_query = f"""
+            UPDATE deliveries 
+            SET {', '.join(update_fields)}
+            WHERE delivery_id = %s
+            RETURNING *
+        """
+        update_values.append(delivery_id)
+        
+        cursor.execute(update_query, update_values)
+        updated_delivery = cursor.fetchone()
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        if not updated_delivery:
+            return jsonify({
+                "code": 404,
+                "message": "Delivery not found"
+            }), 404
+            
+        return jsonify({
+            "code": 200,
+            "message": "Delivery updated successfully",
+            "data": {
+                "delivery_id": updated_delivery[0],
+                "order_id": updated_delivery[1],
+                "customer_id": updated_delivery[2],
+                "parts_list": updated_delivery[3],
+                "created_at": updated_delivery[4].isoformat(),
+                "updated_at": updated_delivery[5].isoformat()
+            }
+        }), 200
+        
+    except Exception as e:
+        if 'conn' in locals():
+            conn.rollback()
+            if 'cursor' in locals():
+                cursor.close()
+            conn.close()
+        return jsonify({
+            "code": 500,
+            "message": str(e)
+        }), 500
+
+if __name__ == '__main__':
+    # First ensure database exists, then initialize tables
+    try:
+        ensure_database_exists()
+        initialize_tables()
+    except Exception as e:
+        print(f"Failed to initialize database: {str(e)}")
+        exit(1)
     
-    except Exception as exception:
-        print(f"  Unable to connect to RabbitMQ.\n     {exception=}\n")
-
-    app.run(host="0.0.0.0", port=5003)  # Adjust the port if needed
-
-
+    app.run(host='0.0.0.0', port=5003)

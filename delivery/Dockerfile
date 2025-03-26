@@ -1,23 +1,31 @@
-# Use the official Python image as the base image
+# Use an official Python runtime as a parent image
 FROM python:3.9-slim
 
-# # Install system dependencies
-# RUN apt-get update && apt-get install -y \
-#     build-essential \
-#     libpq-dev \
-#     && rm -rf /var/lib/apt/lists/*
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
+ENV FLASK_APP=app.py
+ENV FLASK_ENV=development
 
-# Create and change to the app directory
-WORKDIR /usr/src/app
+# Set working directory in the container
+WORKDIR /app
 
-# Copy requirements.txt to the container
-COPY requirements.txt ./
+# Install system dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends gcc python3-dev libpq-dev && \
+    rm -rf /var/lib/apt/lists/*
 
-# Install dependencies
-RUN python -m pip install --no-cache-dir -r requirements.txt
+# Copy requirements file first to leverage Docker cache
+COPY requirements.txt .
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy the rest of the application
+COPY . .
 
 # Expose the port the app runs on
 EXPOSE 5003
 
-# Ensure migrations run before starting the service
-CMD ["sh", "-c", "flask db upgrade && flask run --host=0.0.0.0 --port=5003"]
+# Command to run the application
+CMD ["flask", "run", "--host=0.0.0.0", "--port=5003"]
