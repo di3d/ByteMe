@@ -1,196 +1,204 @@
-import sys
-import os
-from threading import Thread
-
-# Add the path to amqp_setup.py for local testing
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../amqp')))
-
-# Always import amqp_setup
-import amqp_setup
-
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
-import pika
-import uuid
-from datetime import datetime
+import psycopg2
 import os
 import json
-from sqlalchemy.dialects.postgresql import JSON
+import uuid
+from datetime import datetime
+from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
 app = Flask(__name__)
 CORS(app)
 
-rabbit_host = "localhost"
-rabbit_port = 5672
-exchange_name = "order_topic"
-exchange_type = "topic"
+# Database connection parameters
+DB_PARAMS = {
+    "dbname": "order_db",
+    "user": "esduser",
+    "password": "esduser",
+    "host": "localhost",
+    "port": "5444",
+}
 
-# Detect if running inside Docker
-RUNNING_IN_DOCKER = os.getenv("RUNNING_IN_DOCKER", "false").lower() == "true"
-
-# Set Database Configuration Dynamically
-if RUNNING_IN_DOCKER:
-    DB_HOST = "postgres"  # Docker network name
-    DB_PORT = "5432"
-else:
-    DB_HOST = "localhost"  # Local environment
-    DB_PORT = "5433"
-
-
-DB_NAME = os.getenv("DB_NAME", "order_db")
-DB_USER = os.getenv("DB_USER", "postgres")
-DB_PASS = os.getenv("DB_PASS", "iloveESD123")
-
-app.config["SQLALCHEMY_DATABASE_URI"] = f"postgresql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-
-# Initialize the database
-db = SQLAlchemy(app)
-migrate = Migrate(app, db)
-
-# Define the Order model
-class Order(db.Model):
-    id = db.Column(db.String, primary_key=True)
-    customer_id = db.Column(db.String, nullable=False)
-    parts_list = db.Column(JSON, nullable=False)
-    timestamp = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    status = db.Column(db.String, nullable=False, default="pending")
-    
-    
-"""
-function to strcture the delivery log in json format to store in rtdb
-"""    
-def store_order_to_db(data):
-    new_order = Order(
-        id=data["order_id"],
-        customer_id=data["customer_id"],
-        parts_list=data["parts_list"],
-        timestamp=datetime.fromisoformat(data["timestamp"]),
-        status=data["status"]
-    )
-    db.session.add(new_order)
-    db.session.commit()
-    
-    
-"""
-callback function to process the message from the queue
-"""
-def callback(channel, method, properties, body):
+def ensure_database_exists():
+    """Ensure the order_db database exists"""
     try:
-        data = json.loads(body)
-        store_order_to_db(data)
-        channel.basic_ack(delivery_tag=method.delivery_tag)
-        print("Order stored to PostgreSQL successfully")
+        # Connect to the default 'postgres' database to check/create our database
+        conn = psycopg2.connect(
+            dbname="postgres",
+            user=DB_PARAMS["user"],
+            password=DB_PARAMS["password"],
+            host=DB_PARAMS["host"],
+            port=DB_PARAMS["port"]
+        )
+        conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+        cursor = conn.cursor()
+        
+        # Check if database exists
+        cursor.execute("SELECT 1 FROM pg_database WHERE datname = 'order_db'")
+        exists = cursor.fetchone()
+        
+        if not exists:
+            print("Creating database 'order_db'...")
+            cursor.execute("CREATE DATABASE order_db")
+            print("Database 'order_db' created successfully")
+        
+        cursor.close()
+        conn.close()
+        
     except Exception as e:
-        print(f"Error processing message: {e}")
-        print(f"Message body: {body}")
-        
-        
-"""
-starts this microservice to listen to the queue for any incoming messags
-"""    
-def start_consumer():
-    amqp_setup.check_setup()
-    
-    # Use the existing channel from amqp_setup
-    channel = amqp_setup.channel 
-    
-    queue_name = "Order"
-    
-    # Start consuming messages from the delivery queue
-    channel.basic_consume(queue=queue_name, on_message_callback=callback)
-    
-    print(f"Delivery Microservice listening on queue: {queue_name}")
-    channel.start_consuming()
+        print(f"Error ensuring database exists: {str(e)}")
+        raise
 
+def get_db_connection():
+    """Get connection to our application database"""
+    ensure_database_exists()  # Make sure DB exists before connecting
+    conn = psycopg2.connect(**DB_PARAMS)
+    return conn
+
+def initialize_tables():
+    """Initialize the database tables for order service"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Simplified order table schema
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS orders (
+                order_id VARCHAR PRIMARY KEY,
+                customer_id VARCHAR NOT NULL,
+                parts_list JSONB NOT NULL,
+                status VARCHAR(20) NOT NULL DEFAULT 'pending',
+                timestamp TIMESTAMP NOT NULL
+            )
+        """)
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        print("Order tables initialized successfully")
+    except Exception as e:
+        print(f"Error initializing order tables: {str(e)}")
+        raise
 
 @app.route("/order/<string:order_id>", methods=['GET'])
 def get_order(order_id):
-    # Retrieve order from PostgreSQL
-    order = Order.query.get(order_id)
-    if order:
-        return jsonify(
-            {
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT order_id, customer_id, parts_list, status, timestamp
+            FROM orders 
+            WHERE order_id = %s
+        """, (order_id,))
+        order_data = cursor.fetchone()
+        
+        cursor.close()
+        conn.close()
+        
+        if order_data:
+            return jsonify({
                 "code": 200,
                 "data": {
-                    "order_id": order.id,
-                    "customer_id": order.customer_id,
-                    "parts_list": order.parts_list,
-                    "timestamp": order.timestamp.isoformat(),
-                    "status": order.status
+                    "order_id": order_data[0],
+                    "customer_id": order_data[1],
+                    "parts_list": order_data[2],
+                    "status": order_data[3],
+                    "timestamp": order_data[4].isoformat()
                 }
-            }
-        ), 200
-    else:
-        return jsonify(
-            {
+            }), 200
+        else:
+            return jsonify({
                 "code": 404,
                 "message": "Order not found"
-            }
-        ), 404
+            }), 404
+            
+    except Exception as e:
+        return jsonify({
+            "code": 500,
+            "message": str(e)
+        }), 500
 
-# @app.route("/order", methods=['POST'])
-# def create_order():
-#     try:
-#         data = request.get_json()  # Extract JSON data passed in when user creates an order
+@app.route("/order", methods=['POST'])
+def create_order():
+    try:
+        data = request.get_json()
         
-#         # Validate fields to be passed on to order JSON format
-#         required_fields = ["customer_id", "parts_list"]
-#         for field in required_fields:
-#             if field not in data:
-#                 return jsonify(
-#                     {
-#                         "code": 400, 
-#                         "message": f"Missing required field: {field}"
-#                     }
-#                 ), 400
+        # Validate required fields
+        required_fields = ["customer_id", "parts_list"]
+        for field in required_fields:
+            if field not in data:
+                return jsonify({
+                    "code": 400, 
+                    "message": f"Missing required field: {field}"
+                }), 400
                 
-#         # Create a new order
-#         new_order = Order(
-#             id=str(uuid.uuid4()),
-#             customer_id=data["customer_id"],
-#             parts_list=data["parts_list"],
-#             status="pending"
-#         )
-#         db.session.add(new_order)
-#         db.session.commit()
-
-#         # Publish the order to RabbitMQ
-#         order_message = {
-#             "order_id": new_order.id,
-#             "customer_id": new_order.customer_id,
-#             "parts_list": new_order.parts_list,
-#             "timestamp": new_order.timestamp.isoformat(),
-#             "status": new_order.status
-#         }
-#         amqp_setup.publish_message(
-#             exchange_name="order_topic",
-#             routing_key="order.create",
-#             message=json.dumps(order_message)
-#         )
-
-#         return jsonify(
-#             {
-#                 "code": 201,
-#                 "message": "Order created successfully",
-#                 "data": order_message
-#             }
-#         ), 201
+        # Validate parts_list is a list
+        if not isinstance(data["parts_list"], list):
+            return jsonify({
+                "code": 400,
+                "message": "parts_list must be an array"
+            }), 400
+                
+        # Generate order_id and timestamp
+        order_id = str(uuid.uuid4())
+        current_time = datetime.now()
         
-#     except Exception as e:
-#         return jsonify({"code": 500, "message": str(e)}), 500
-
-
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Create new order with default status 'pending'
+        cursor.execute(
+            """
+            INSERT INTO orders (
+                order_id, customer_id, parts_list, status, timestamp
+            ) VALUES (%s, %s, %s::jsonb, %s, %s)
+            RETURNING *
+            """,
+            (
+                order_id,
+                data["customer_id"],
+                json.dumps(data["parts_list"]),
+                "pending",  # Default status
+                current_time
+            )
+        )
+        
+        new_order = cursor.fetchone()
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            "code": 201,
+            "message": "Order created successfully",
+            "data": {
+                "order_id": new_order[0],
+                "customer_id": new_order[1],
+                "parts_list": new_order[2],
+                "status": new_order[3],
+                "timestamp": new_order[4].isoformat()
+            }
+        }), 201
+        
+    except Exception as e:
+        if 'conn' in locals():
+            conn.rollback()
+            if 'cursor' in locals():
+                cursor.close()
+            conn.close()
+        return jsonify({
+            "code": 500,
+            "message": str(e)
+        }), 500
 
 if __name__ == '__main__':
+    # First ensure database exists, then initialize tables
     try:
-        # Start the AMQP consumer in a separate thread
-        Thread(target=start_consumer, daemon=True).start()
-    except Exception as exception:
-        print(f"Unable to connect to RabbitMQ.\n  {exception=}\n")
-        
+        ensure_database_exists()
+        initialize_tables()
+    except Exception as e:
+        print(f"Failed to initialize database: {str(e)}")
+        exit(1)
+    
     app.run(host='0.0.0.0', port=5002)
-
-

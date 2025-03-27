@@ -1,6 +1,4 @@
-Flask
+flask
 flask-cors
-flask-migrate
-flask-sqlalchemy
-pika
 psycopg2-binary
+python-dotenv
