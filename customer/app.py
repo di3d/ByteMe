@@ -9,7 +9,7 @@ CORS(app)
 
 # Database connection parameters
 DB_PARAMS = {
-    "dbname": "customer_db",  # This will be used after we ensure the DB exists
+    "dbname": "customer_db",
     "user": "esduser",
     "password": "esduser",
     "host": "localhost",
@@ -19,7 +19,6 @@ DB_PARAMS = {
 def ensure_database_exists():
     """Ensure the customer_db database exists"""
     try:
-        # Connect to the default 'postgres' database to check/create our database
         conn = psycopg2.connect(
             dbname="postgres",
             user=DB_PARAMS["user"],
@@ -30,7 +29,6 @@ def ensure_database_exists():
         conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
         cursor = conn.cursor()
         
-        # Check if database exists
         cursor.execute("SELECT 1 FROM pg_database WHERE datname = 'customer_db'")
         exists = cursor.fetchone()
         
@@ -48,7 +46,7 @@ def ensure_database_exists():
 
 def get_db_connection():
     """Get connection to our application database"""
-    ensure_database_exists()  # Make sure DB exists before connecting
+    ensure_database_exists()
     conn = psycopg2.connect(**DB_PARAMS)
     return conn
 
@@ -69,18 +67,22 @@ def initialize_tables():
         conn.commit()
         cursor.close()
         conn.close()
-        print("Tables initialized successfully")
+        print("Customer tables initialized successfully")
     except Exception as e:
         print(f"Error initializing tables: {str(e)}")
         raise
 
 @app.route("/customer/<string:customer_id>", methods=['GET'])
-def getCustomer(customer_id):
+def get_customer(customer_id):
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        cursor.execute("SELECT id, name, address, email FROM customers WHERE id = %s", (customer_id,))
+        cursor.execute("""
+            SELECT id, name, address, email 
+            FROM customers 
+            WHERE id = %s
+        """, (customer_id,))
         customer_data = cursor.fetchone()
         
         cursor.close()
@@ -113,7 +115,7 @@ def create_customer():
     try:
         data = request.get_json()
         
-        # Validate fields
+        # Validate required fields
         required_fields = ["customer_id", "name", "address", "email"]
         for field in required_fields:
             if field not in data:
@@ -122,7 +124,7 @@ def create_customer():
                     "message": f"Missing required field: {field}"
                 }), 400
                 
-        # Check if customer exists
+        # Check if customer already exists
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("SELECT id FROM customers WHERE id = %s", (data["customer_id"],))
@@ -131,14 +133,25 @@ def create_customer():
             conn.close()
             return jsonify({
                 "code": 409,
-                "message": "Customer already exists"
+                "message": "Customer ID already exists"
             }), 409
         
         # Create new customer
         cursor.execute(
-            "INSERT INTO customers (id, name, address, email) VALUES (%s, %s, %s, %s)",
-            (data["customer_id"], data["name"], data["address"], data["email"])
+            """
+            INSERT INTO customers (id, name, address, email)
+            VALUES (%s, %s, %s, %s)
+            RETURNING id, name, address, email
+            """,
+            (
+                data["customer_id"],
+                data["name"],
+                data["address"],
+                data["email"]
+            )
         )
+        
+        new_customer = cursor.fetchone()
         conn.commit()
         cursor.close()
         conn.close()
@@ -147,10 +160,10 @@ def create_customer():
             "code": 201,
             "message": "Customer created successfully",
             "data": {
-                "customer_id": data["customer_id"],
-                "name": data["name"],
-                "address": data["address"],
-                "email": data["email"]
+                "customer_id": new_customer[0],
+                "name": new_customer[1],
+                "address": new_customer[2],
+                "email": new_customer[3]
             }
         }), 201
         
@@ -166,7 +179,6 @@ def create_customer():
         }), 500
 
 if __name__ == '__main__':
-    # First ensure database exists, then initialize tables
     try:
         ensure_database_exists()
         initialize_tables()
