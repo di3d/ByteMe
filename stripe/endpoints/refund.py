@@ -1,3 +1,4 @@
+import logging
 from flask import jsonify, request
 import stripe
 import json
@@ -5,9 +6,19 @@ import time
 from config import Config
 from utils.rabbitmq_utils import publish_message, get_rabbitmq_connection
 from endpoints.init import refund_bp
+import sys
+import os
+
+# Add path for AMQP setup
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../amqp')))
+import amqp_setup
 
 # Configure Stripe
 stripe.api_key = Config.STRIPE_SECRET_KEY
+
+# Setup logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 @refund_bp.route('/refund', methods=['POST'])
 def create_refund():
@@ -56,58 +67,44 @@ def create_refund():
         return jsonify({'error': str(e)}), 400
 
 @refund_bp.route('/refund-async', methods=['POST'])
-def create_refund_async():
-    """
-    Queue a refund to be processed asynchronously.
-    
-    Request body parameters:
-    - payment_intent_id: (required) Payment Intent ID to refund
-    - amount: (optional) Amount to refund in cents, if omitted refunds full amount
-    - user_id: (optional) User ID for tracking
-    - request_id: (optional) Request ID for tracking, auto-generated if omitted
-    
-    Returns:
-    - success: True if successful
-    - message: Confirmation message
-    - request_id: ID for tracking the refund request
-    """
-    data = json.loads(request.data)
+def refund_async():
     try:
-        if not data.get('payment_intent_id'):
-            return jsonify({"error": "Payment intent ID is required"}), 400
+        data = request.get_json()
+        logger.info(f"Received refund request for: {data.get('payment_intent_id')}")
         
-        # Create a refund request message
-        refund_request = {
-            'payment_intent_id': data.get('payment_intent_id'),
-            'amount': data.get('amount'),
-            'user_id': data.get('user_id'),
-            'request_id': data.get('request_id', str(time.time())),
-            'timestamp': int(time.time())
+        # Verify payment intent first
+        payment_intent = stripe.PaymentIntent.retrieve(data['payment_intent_id'])
+        logger.info(f"Found payment intent: {payment_intent.id}, Status: {payment_intent.status}")
+
+        # Create message for queue
+        message = {
+            'payment_intent_id': data['payment_intent_id'],
+            'amount': payment_intent.amount,
+            'customer_email': data.get('customer_email'),
+            'request_id': str(time.time())
         }
         
-        # Check if RabbitMQ is available
-        if not get_rabbitmq_connection():
-            # Fall back to synchronous processing if RabbitMQ is unavailable
-            print("RabbitMQ unavailable - falling back to synchronous refund processing")
-            return process_refund_synchronously(data)
+        # Publish to queue
+        amqp_setup.channel.basic_publish(
+            exchange='stripe_exchange',
+            routing_key='refund.request',
+            body=json.dumps(message)
+        )
         
-        # Publish to the refund requests queue
-        success = publish_message(Config.QUEUE_REFUND_REQUESTS, refund_request)
-        
-        if success:
-            return jsonify({
-                'success': True,
-                'message': 'Refund request queued successfully',
-                'request_id': refund_request['request_id']
-            })
-        else:
-            # If publishing failed, fall back to synchronous processing
-            print("Failed to publish to RabbitMQ - falling back to synchronous refund processing")
-            return process_refund_synchronously(data)
-            
+        return jsonify({
+            "success": True,
+            "message": "Refund request received and processing",
+            "request_id": message['request_id'],
+            "payment_intent": payment_intent.id,
+            "amount": payment_intent.amount
+        })
+
     except Exception as e:
-        print(f"Error in refund async: {str(e)}")
-        return jsonify({'error': str(e)}), 400
+        logger.error(f"Error in refund request: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
 
 def process_refund_synchronously(data):
     """

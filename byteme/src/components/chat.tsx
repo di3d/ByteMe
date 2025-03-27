@@ -1,9 +1,9 @@
-"use client";
-
 import { useState } from "react";
 import axios from "axios";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { recommendationsCollection } from "@/lib/firebase";  // Import firebase collection
+import { addDoc } from "firebase/firestore";  // Import Firestore function for adding documents
 
 export default function Chat() {
   const [messages, setMessages] = useState<{ role: string; text: string }[]>([]);
@@ -18,11 +18,24 @@ export default function Chat() {
 
     try {
       const response = await axios.post("http://localhost:5000/chat", { message: input });
-      // Remove <think> and </think> tags from the bot's response
+
+      // Clean the response by removing <think> tags
       const cleanedResponse = response.data.reply.replace(/<think.*?>.*?<\/think>/g, "").trim();
 
+      // Add bot message to chat
       const botMessage = { role: "bot", text: cleanedResponse };
       setMessages((prev) => [...prev, botMessage]);
+
+      // Save the recommendation to Firebase (you may extract parts from cleanedResponse)
+      const recommendationData = {
+        userMessage: input,
+        recommendedParts: cleanedResponse,  // Modify this to store the relevant parts data
+        timestamp: new Date()
+      };
+
+      // Save to Firestore
+      await addDoc(recommendationsCollection, recommendationData);
+
     } catch (error) {
       console.error("Error:", error);
     }

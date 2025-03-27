@@ -11,6 +11,8 @@ import {
 } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import Navbar from "@/components/navbar";
+import { AuthProvider } from "@/lib/auth-context"; // Add this import
+import { Toaster } from "sonner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -35,16 +37,18 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head />
-      <body>
+      <body className={`${geistSans.variable} ${geistMono.variable}`}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
           enableSystem
           disableTransitionOnChange
         >
-<Navbar/>
-{children}
-
+          <AuthProvider> {/* Add this wrapper */}
+            <Navbar/>
+            {children}
+            <Toaster position="top-center" richColors expand={false} />
+          </AuthProvider> 
         </ThemeProvider>
       </body>
     </html>

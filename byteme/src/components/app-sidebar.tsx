@@ -52,6 +52,10 @@ const data = {
           url: "/purchase",
         },
         {
+          title: "Checkout",
+          url: "/checkout",
+        },
+        {
           title: "Upgrade",
           url: "/upgrade",
         },

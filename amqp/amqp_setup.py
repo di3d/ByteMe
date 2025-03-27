@@ -3,31 +3,17 @@ import os
 from os import environ
 
 # Note about AMQP connection: various network firewalls, filters, gateways (e.g., SMU VPN on wifi), may hinder the connections;
-# If "pika.exceptions.AMQPConnectionError" happens, may try again after disconnecting the wifi and/or disabling firewalls.
-# If see: Stream connection lost: ConnectionResetError(10054, 'An existing connection was forcibly closed by the remote host', None, 10054, None)
-# - Try: simply re-run the program or refresh the page.
-# For rare cases, it's incompatibility between RabbitMQ and the machine running it,
-# - Use the Docker version of RabbitMQ instead: https://www.rabbitmq.com/download.html
 
-"""
-variables for creating a connection with AMQP server
-"""
+# Connection settings
+amqp_host = environ.get('rabbit_host') or 'localhost'
+amqp_port = environ.get('rabbit_port') or 5672
 
-
-# Detect if running inside Docker
-RUNNING_IN_DOCKER = os.getenv("RUNNING_IN_DOCKER", "false").lower() == "true"
-
-# Set RabbitMQ Configuration Dynamically
-if RUNNING_IN_DOCKER:
-    amqp_host = "amqp"  # Use the RabbitMQ service name in Docker Compose
-    amqp_port = 5672    # Default RabbitMQ port inside Docker
-else:
-    amqp_host = "localhost"  # Local environment
-    amqp_port = 5672         # RabbitMQ port on the host machine
-    
-
-exchange_name = "order_topic"
-exchange_type = "topic"
+# Define exchanges
+EXCHANGES = {
+    "order_topic": "topic",     # For order-related events
+    "notification": "topic",    # For notifications/emails
+    "payment": "topic"          # For payment/refund events
+}
 
 """
 This function creates a channel (connection) and establishes connection with AMQP server
@@ -94,19 +80,72 @@ def is_connection_open(connection):
         print("AMQP Error:", e)
         print("...creating a new connection.")
         return False
-    
-def publish_message(exchange_name, routing_key, message):
-    try:
-        connection, channel = create_channel()
-        channel.basic_publish(
-            exchange=exchange_name,
-            routing_key=routing_key,
-            body=message,
-            properties=pika.BasicProperties(delivery_mode=2)  # Make message persistent
-        )
-        print(f"Message published to exchange '{exchange_name}' with routing key '{routing_key}': {message}")
-        connection.close()
-    except Exception as e:
-        print(f"Failed to publish message: {e}")
 
-setup_rabbitmq()
+# Initialize exchanges and queues
+def init_exchanges_and_queues():
+    """Initialize all exchanges and their queues"""
+    global connection, channel
+    
+    # Create/verify exchanges
+    for exchange_name, exchange_type in EXCHANGES.items():
+        channel.exchange_declare(
+            exchange=exchange_name, 
+            exchange_type=exchange_type, 
+            durable=True
+        )
+
+    # Order-related queues
+    create_queue(
+        channel=channel,
+        exchange_name="order_topic",
+        queue_name="Order",
+        routing_key="order.create"
+    )
+    
+    create_queue(
+        channel=channel,
+        exchange_name="order_topic",
+        queue_name="Delivery",
+        routing_key="delivery.#"
+    )
+    
+    create_queue(
+        channel=channel,
+        exchange_name="order_topic",
+        queue_name="Parts",
+        routing_key="parts.#"
+    )
+
+    # Notification queues
+    create_queue(
+        channel=channel,
+        exchange_name="notification",
+        queue_name="EmailNotifications",
+        routing_key="notification.#"
+    )
+
+    # Payment/Refund queues
+    create_queue(
+        channel=channel,
+        exchange_name="payment",
+        queue_name="stripe_refund_requests",
+        routing_key="refund.request"
+    )
+    
+    create_queue(
+        channel=channel,
+        exchange_name="payment",
+        queue_name="stripe_refund_responses",
+        routing_key="refund.response"
+    )
+
+# Create initial connection
+connection, channel = create_channel(
+    hostname=amqp_host,
+    port=amqp_port,
+    exchange_name="order_topic",  # Default exchange
+    exchange_type="topic"
+)
+
+# Initialize all exchanges and queues
+init_exchanges_and_queues()
