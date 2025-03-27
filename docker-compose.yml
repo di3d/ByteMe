@@ -14,110 +14,79 @@ services:
   #   networks:
   #     - kong-net
 
-  # # PostgreSQL service for atomic microservices
-  # postgres:
-  #   build:
-  #     context: ./database # Path to the database directory
-  #     dockerfile: Dockerfile # Specify the Dockerfile to use
-  #   container_name: postgres
-  #   environment:
-  #     POSTGRES_USER: postgres
-  #     POSTGRES_PASSWORD: iloveESD123
-  #     POSTGRES_MULTIPLE_DATABASES: customer_db, order_db, delivery_db, recommendation_db
-  #   volumes:
-  #     - postgres_data:/var/lib/postgresql/data
-  #     - ./database/create-multiple-postgresql-databases.sh:/docker-entrypoint-initdb.d/create-multiple-postgresql-databases.sh
-  #   ports:
-  #     - "5433:5432" # Map local port 5433 to container port 5432
-  #   healthcheck: # Needed to initialize all databases initially
-  #     test: ["CMD-SHELL", "pg_isready -U postgres"]
-  #     interval: 5s
-  #     retries: 10
-  #     start_period: 10s
-  #   restart: on-failure
-  #   networks:
-  #     - kong-net
-
-  postgres_image:
-    container_name: postgres_image
+  # PostgreSQL service for atomic microservices
+  postgres:
     image: postgres:latest
+    container_name: postgres
     environment:
-      - POSTGRES_USER=esduser
-      - POSTGRES_PASSWORD=esduser
-      - POSTGRES_DB=default #optional (specify default database instead of $POSTGRES_DB)
+      POSTGRES_USER: esduser
+      POSTGRES_PASSWORD: esduser
+      POSTGRES_DB: default
     ports:
       - "5444:5432"
     restart: always
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
-  # # Customer microservice
-  # customer:
-  #   build:
-  #     context: ./customer # Path to the Customer service's Dockerfile
-  #     dockerfile: Dockerfile # Specify the Dockerfile to use
-  #   ports:
-  #     - "5001:5001" # Map port 5001 for the Customer service
-  #   environment:
-  #     - FLASK_APP=app.py # Specify the Flask app file
-  #     - RUNNING_IN_DOCKER=true
-  #   depends_on:
-  #     postgres_image:
-  #       condition: service_healthy
-  #   networks:
-  #     - kong-net  # ✅ ADD THIS
+  # Customer microservice
+  customer:
+    build:
+      context: ./customer
+      dockerfile: Dockerfile
+    ports:
+      - "5001:5001"
+    environment:
+      - FLASK_APP=app.py
+      - RUNNING_IN_DOCKER=true
+    depends_on:
+      postgres:
+        condition: service_healthy
 
-  # # Order microservice
-  # order:
-  #   build:
-  #     context: ./order # Path to the Order service's Dockerfile
-  #     dockerfile: Dockerfile # Specify the Dockerfile to use
-  #   restart: on-failure
-  #   ports:
-  #     - "5002:5002" # Map port 5002 for the Order service
-  #   environment:
-  #     - FLASK_APP=app.py # Specify the Flask app file
-  #     - RUNNING_IN_DOCKER=true
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #   networks:
-  #     - kong-net
+  # Order microservice
+  order:
+    build:
+      context: ./order
+      dockerfile: Dockerfile
+    ports:
+      - "5002:5002"
+    environment:
+      - FLASK_APP=app.py
+      - RUNNING_IN_DOCKER=true
+    depends_on:
+      postgres:
+        condition: service_healthy
 
-  # # Delivery microservice
-  # delivery:
-  #   build:
-  #     context: ./delivery # Path to the Delivery service's Dockerfile
-  #     dockerfile: Dockerfile # Specify the Dockerfile to use
-  #   restart: on-failure
-  #   ports:
-  #     - "5003:5003" # Map port 5003 for the Delivery service
-  #   environment:
-  #     - FLASK_APP=app.py # Specify the Flask app file
-  #     - RUNNING_IN_DOCKER=true
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #   networks:
-  #     - kong-net
+  # Delivery microservice
+  delivery:
+    build:
+      context: ./delivery
+      dockerfile: Dockerfile
+    ports:
+      - "5003:5003"
+    environment:
+      - FLASK_APP=app.py
+      - RUNNING_IN_DOCKER=true
+    depends_on:
+      postgres:
+        condition: service_healthy
 
-  # # Recommendation microservice
-  # recommendation:
-  #   build:
-  #     context: ./recommendation # Path to the Recommendation service's Dockerfile
-  #     dockerfile: Dockerfile # Specify the Dockerfile to use
-  #   restart: on-failure
-  #   ports:
-  #     - "5004:5004" # Map port 5004 for the Recommendation service
-  #   environment:
-  #     - FLASK_APP=app.py # Specify the Flask app file
-  #     - RUNNING_IN_DOCKER=true
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #   networks:
-  #     - kong-net
+  # Recommendation microservice
+  recommendation:
+    build:
+      context: ./recommendation
+      dockerfile: Dockerfile
+    ports:
+      - "5004:5004"
+    environment:
+      - FLASK_APP=app.py
+      - RUNNING_IN_DOCKER=true
+    depends_on:
+      postgres:
+        condition: service_healthy
 
+volumes:
+  postgres_data:
+  
   # # Make Purchase microservice
   # make_purchase:
   #   build:
@@ -150,9 +119,6 @@ services:
   #   environment:
   #     - FLASK_ENV=development # Set Flask environment to development
   #     - RUNNING_IN_DOCKER=true
-
-volumes:
-  postgres_data:
 
 networks:
   kong-net:
