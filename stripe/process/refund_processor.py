@@ -13,19 +13,11 @@ from config import Config
 # Configure Stripe
 stripe.api_key = Config.STRIPE_SECRET_KEY
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-# Set PIKA logging to WARNING
-logging.getLogger("pika").setLevel(logging.WARNING)
-# Configure our logger
+# Get logger but don't reconfigure the root logger
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
-# Add formatter for cleaner logs
-formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-handler = logging.StreamHandler()
-handler.setFormatter(formatter)
-logger.addHandler(handler)
+# Import this function after we've setup the proper paths
+from .message_queue import get_rabbitmq_connection
 
 def process_refund_callback(ch, method, properties, body):
     try:
@@ -66,17 +58,23 @@ def get_rabbitmq_connection_with_retry(retries=5, delay=5):
         time.sleep(delay)
     raise Exception("Failed to connect to RabbitMQ after multiple attempts")
 
-# Import this function after we've setup the proper paths
-from .rabbitmq_setup import get_rabbitmq_connection
-
 def start_consuming():
-    connection = get_rabbitmq_connection_with_retry()
-    channel = connection.channel()
+    try:
+        connection = get_rabbitmq_connection_with_retry()
+        channel = connection.channel()
 
-    # Declare the refund request queue
-    channel.queue_declare(queue='refund.request', durable=True)
+        # Declare the refund request queue
+        channel.queue_declare(queue='refund.request', durable=True)
 
-    # Start consuming messages from the queue
-    channel.basic_consume(queue='refund.request', on_message_callback=process_refund_callback)
-    logger.info("Stripe service is consuming refund requests from 'refund.request' queue")
-    channel.start_consuming()
+        # Set prefetch count to 1 so workers only get one message at a time
+        channel.basic_qos(prefetch_count=1)
+        
+        # Start consuming messages from the queue
+        channel.basic_consume(queue='refund.request', on_message_callback=process_refund_callback)
+        logger.info("Stripe service is consuming refund requests from 'refund.request' queue")
+        channel.start_consuming()
+    except Exception as e:
+        logger.error(f"Error starting refund consumer: {str(e)}")
+        # Add a retry mechanism if needed
+        time.sleep(5)
+        start_consuming()  # Restart the consumer

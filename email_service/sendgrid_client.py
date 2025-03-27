@@ -65,12 +65,14 @@ class EmailService:
                     "status_code": response.status_code
                 }
             else:
+                print(f"Error sending email: HTTP Error {response.status_code}: {response.body.decode('utf-8') if response.body else 'No body'}")
                 return {
                     "success": False,
                     "message": f"Failed to send email: HTTP {response.status_code}",
-                    "status_code": response.status_code
+                    "status_code": response.status_code,
+                    "response_body": response.body.decode('utf-8') if response.body else "No response body"
                 }
-                
+                    
         except Exception as e:
             # Log the error (replace with proper logging)
             print(f"Error sending email: {str(e)}")

@@ -1,4 +1,4 @@
-from flask import Flask, jsonify
+from flask import Flask
 from flask_cors import CORS
 from config import Config
 import stripe
@@ -6,10 +6,6 @@ import logging
 import threading
 import sys
 import os
-from endpoints import checkout
-from endpoints import payment
-from endpoints import refund
-from endpoints import status
 
 # Add the root directory to the Python path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '/')))
@@ -22,7 +18,7 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 # Update CORS configuration to explicitly allow requests from the frontend
-CORS(app)
+CORS(app, resources={r"/*": {"origins": "http://localhost:3000"}})
 
 # Configure Stripe
 stripe.api_key = Config.STRIPE_SECRET_KEY
@@ -46,21 +42,6 @@ app.register_blueprint(refund_bp)
 app.register_blueprint(checkout_bp)
 app.register_blueprint(status_bp)
 app.register_blueprint(payment_bp)
-
-@app.route('/debug/routes')
-def list_routes():
-    routes = []
-    for rule in app.url_map.iter_rules():
-        routes.append({
-            'endpoint': rule.endpoint,
-            'methods': [method for method in rule.methods if method not in ['HEAD', 'OPTIONS']],
-            'path': str(rule)
-        })
-    return jsonify(routes)
-
-@app.route('/health', methods=['GET'])
-def health_check():
-    return jsonify({"status": "healthy"}), 200
 
 if __name__ == "__main__":
     logger.info("Stripe service started (RabbitMQ disabled)")

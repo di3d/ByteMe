@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,13 +13,24 @@ export default function RefundPage() {
   const [loading, setLoading] = useState(false);
   const [paymentId, setPaymentId] = useState('');
   const { user } = useAuth();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const paymentIntent = searchParams.get('payment_intent');
+    if (paymentIntent) {
+      setPaymentId(paymentIntent);
+    }
+  }, [searchParams]);
 
   const handleRefund = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      const refundResponse = await fetch('http://localhost:5000/refund-async', {
+      // Use environment variable or fallback to localhost
+      const apiUrl = process.env.NEXT_PUBLIC_SCENARIO3_API_URL || 'http://127.0.0.1:5003';
+      
+      const refundResponse = await fetch(`${apiUrl}/initiate-refund`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -41,9 +53,10 @@ export default function RefundPage() {
         });
         setPaymentId(''); // Clear form
       } else {
-        throw new Error(data.error || 'Failed to process refund');
+        toast.error('Refund Failed', {
+          description: data.error || 'Failed to process refund',
+        });
       }
-
     } catch (error) {
       console.error('Refund Error:', error);
       toast.error('Refund Failed', {

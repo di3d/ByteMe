@@ -42,14 +42,15 @@ export default function Checkout() {
     hasCreatedSession.current = true;
     
     const totalAmount = calculateBuildTotal(selectedBuild);
+    const stripeApiUrl = process.env.NEXT_PUBLIC_STRIPE_API_URL || 'http://127.0.0.1:5000';
 
     try {
-      const response = await fetch('http://127.0.0.1:5000/create-checkout-session', {
+      const response = await fetch(`${stripeApiUrl}/create-checkout-session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          amount: totalAmount,  // Add this line to pass total amount
-          customer_email: user?.email, // Add authenticated user's email
+          amount: totalAmount,
+          customer_email: user?.email,
           currency: 'sgd',
           product_name: selectedBuild.name,
           metadata: {

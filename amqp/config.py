@@ -5,14 +5,6 @@ from dotenv import load_dotenv, find_dotenv
 load_dotenv(find_dotenv())
 
 class Config:
-    # Stripe settings
-    STRIPE_SECRET_KEY = os.getenv('STRIPE_SECRET_KEY')
-    STRIPE_PUBLISHABLE_KEY = os.getenv('STRIPE_PUBLISHABLE_KEY')
-
-    # Default URLs
-    DEFAULT_SUCCESS_URL = os.getenv('DEFAULT_SUCCESS_URL', 'http://localhost:3000/success')
-    DEFAULT_CANCEL_URL = os.getenv('DEFAULT_CANCEL_URL', 'http://localhost:3000/checkout?canceled=true')
-
     # RabbitMQ settings
     RABBITMQ_HOST = os.getenv('RABBITMQ_HOST', '127.0.0.1')
     RABBITMQ_PORT = int(os.getenv('RABBITMQ_PORT', 5672))

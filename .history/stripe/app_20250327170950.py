@@ -6,10 +6,6 @@ import logging
 import threading
 import sys
 import os
-from endpoints import checkout
-from endpoints import payment
-from endpoints import refund
-from endpoints import status
 
 # Add the root directory to the Python path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '/')))

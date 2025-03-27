@@ -1,76 +1,97 @@
-# /Users/jonathanong/ByteMe/scenario3/requesting_refund.py
+import sys
+import os
 
+# Add the project root and /stripe directory to the Python path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../stripe')))
+
+from flask import Flask, request, jsonify
 import requests
-import json
-from amqp_setup import publish_message
 from config import Config
+from amqp.amqp_setup import publish_message
+import json
+from flask_cors import CORS
+import logging
 
-def get_order_details(order_id):
-    response = requests.get(f"http://order-service/orders/{order_id}")
-    return response.json()
+SUPPORTED_HTTP_METHODS = set([
+    "GET", "OPTIONS", "HEAD", "POST", "PUT", "PATCH", "DELETE"
+])
 
-def get_parts_in_order(order_id):
-    response = requests.get(f"http://parts-service/orders/{order_id}/parts")
-    return response.json()
+def invoke_http(url, method='GET', json=None, **kwargs):
+    """
+    A simple wrapper for HTTP requests.
+    """
+    try:
+        if method.upper() in SUPPORTED_HTTP_METHODS:
+            response = requests.request(method, url, json=json, **kwargs)
+            response.raise_for_status()
+            return response.json() if response.content else {}
+        else:
+            raise ValueError(f"HTTP method {method} unsupported.")
+    except requests.exceptions.RequestException as e:
+        return {"code": 500, "message": f"HTTP request failed: {str(e)}"}
 
-def get_customer_details(customer_id):
-    response = requests.get(f"http://customer-service/customers/{customer_id}")
-    return response.json()
+app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
 
-def create_delivery_task(delivery_data):
-    publish_message(Config.QUEUE_DELIVERY_TASKS, delivery_data)
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-def initiate_refund(refund_data):
-    publish_message(Config.QUEUE_REFUND_REQUESTS, refund_data)
+@app.route('/initiate-refund', methods=['POST'])
+def initiate_refund():
+    """
+    Endpoint to initiate a refund and send a notification email.
+    """
+    try:
+        data = request.get_json()
+        payment_intent_id = data.get('payment_intent_id')
+        customer_email = data.get('customer_email')
+        if not payment_intent_id or not customer_email:
+            logger.error("Missing required fields: payment_intent_id or customer_email")
+            return jsonify({"success": False, "error": "Missing required fields: payment_intent_id or customer_email"}), 400
 
-def send_refund_email(email_data):
-    publish_message(Config.QUEUE_EMAIL_REQUESTS, email_data)
+        # Get the Stripe service URL from environment or use default
+        stripe_url = os.environ.get('STRIPE_SERVICE_URL', 'http://127.0.0.1:5000')
+        
+        logger.info(f"Retrieving payment intent: {payment_intent_id}")
+        payment_intent = invoke_http(f"{stripe_url}/payment-intent/{payment_intent_id}", method="GET")
 
-def request_refund(order_id, customer_id):
-    # Step 3: Get order details
-    order_details = get_order_details(order_id)
-    
-    # Step 5: Get specific parts in order
-    parts_details = get_parts_in_order(order_id)
-    
-    # Step 7: Get customer details
-    customer_details = get_customer_details(customer_id)
-    
-    # Step 9: Create delivery task
-    delivery_data = {
-        "order_id": order_id,
-        "customer_id": customer_id,
-        "parts": parts_details,
-        "delivery_address": customer_details["address"]
-    }
-    create_delivery_task(delivery_data)
-    
-    # Step 10: Initiate refund
-    refund_data = {
-        "payment_intent_id": order_details["payment_intent_id"],
-        "amount": order_details["total_amount"],
-        "customer_email": customer_details["email"],
-        "order_id": order_id
-    }
-    initiate_refund(refund_data)
-    
-    # Step 11: Send refund email confirmation
-    email_data = {
-        "to_email": customer_details["email"],
-        "subject": "Your refund request has been received",
-        "content": f"Dear {customer_details['name']},\n\nWe have received your refund request for order {order_id}."
-    }
-    send_refund_email(email_data)
-    
-    # Step 12: Return refund confirmation
-    return {
-        "status": "success",
-        "message": "Refund request has been initiated. You will receive an email confirmation shortly."
-    }
+        # Check if the payment intent retrieval was successful
+        if not payment_intent or payment_intent.get("status") != "succeeded":
+            logger.error(f"Invalid payment intent: {payment_intent}")
+            return jsonify({"success": False, "error": "Invalid payment intent or status"}), 400
 
-# Example usage
+        # Create message for refund queue
+        refund_message = {
+            'payment_intent_id': payment_intent_id,
+            'amount': payment_intent.get('amount'),
+            'customer_email': customer_email
+        }
+
+        # Publish refund request to RabbitMQ
+        logger.info(f"Publishing refund message: {refund_message}")
+        publish_message('payment', 'refund.request', json.dumps(refund_message))
+
+        # Create message for email notification
+        email_message = {
+            'type': 'notification.email.refund_initiated',
+            'data': {
+                'payment_intent_id': payment_intent_id,
+                'amount': payment_intent.get('amount'),
+                'currency': 'sgd',
+                'customer_email': customer_email
+            }
+        }
+
+        # Publish email notification to RabbitMQ
+        logger.info(f"Publishing email notification: {email_message}")
+        publish_message('notification', 'notification.email', json.dumps(email_message))
+
+        return jsonify({"success": True, "message": "Refund request queued successfully"})
+    except Exception as e:
+        logger.error(f"Error in /initiate-refund: {str(e)}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
 if __name__ == "__main__":
-    order_id = "12345"
-    customer_id = "67890"
-    result = request_refund(order_id, customer_id)
-    print(result)
+    app.run(host="0.0.0.0", port=5003, debug=True)

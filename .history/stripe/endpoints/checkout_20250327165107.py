@@ -2,7 +2,7 @@ from flask import jsonify, request
 import stripe
 import json
 from config import Config
-from endpoints.blueprint_registry import checkout_bp
+from endpoints.init import checkout_bp
 
 # Configure Stripe
 stripe.api_key = Config.STRIPE_SECRET_KEY
