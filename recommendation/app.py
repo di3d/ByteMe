@@ -12,12 +12,13 @@ CORS(app)
 
 # Database connection parameters
 DB_PARAMS = {
-    "dbname": "recommendation_db",
-    "user": "esduser",
-    "password": "esduser",
-    "host": "localhost",
-    "port": "5444",
+    "dbname": os.getenv("DB_NAME", "customer_db"),
+    "user": os.getenv("DB_USER", "esduser"),
+    "password": os.getenv("DB_PASSWORD", "esduser"),
+    "host": os.getenv("DB_HOST", "localhost"),  # Special DNS name to access host
+    "port": os.getenv("DB_PORT", "5444"),  # Your host PostgreSQL port
 }
+
 
 def ensure_database_exists():
     """Ensure the recommendation_db database exists"""
