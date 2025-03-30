@@ -71,7 +71,17 @@ def create_checkout_session():
         # Create the Checkout Session
         checkout_session = stripe.checkout.Session.create(**session_params)
         
-        return jsonify({'url': checkout_session.url})
+                # Retrieve the Payment Intent using the session’s payment_intent ID
+        intent = stripe.PaymentIntent.retrieve(checkout_session.payment_intent)
+        
+        # Return both the checkout URL and the intent ID
+        return jsonify({
+            "code": 200,
+            "data": {
+                "checkout_url": checkout_session.url,
+                "payment_intent_id": intent.id
+            }
+        }), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
