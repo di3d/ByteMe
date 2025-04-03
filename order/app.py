@@ -62,7 +62,7 @@ def initialize_tables():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Simplified order table schema
+        # Simplified order table schema doesn't exist
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS orders (
                 order_id VARCHAR PRIMARY KEY,
@@ -188,6 +188,45 @@ def create_order():
             if 'cursor' in locals():
                 cursor.close()
             conn.close()
+        return jsonify({
+            "code": 500,
+            "message": str(e)
+        }), 500
+
+@app.route("/orders", methods=['GET'])
+def get_all_orders():
+    """Fetch all orders from the database."""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT order_id, customer_id, parts_list, status, timestamp
+            FROM orders
+        """)
+        orders = cursor.fetchall()
+
+        cursor.close()
+        conn.close()
+
+        # Format the response
+        order_list = [
+            {
+                "order_id": order[0],
+                "customer_id": order[1],
+                "parts_list": order[2],
+                "status": order[3],
+                "timestamp": order[4].isoformat()
+            }
+            for order in orders
+        ]
+
+        return jsonify({
+            "code": 200,
+            "data": order_list
+        }), 200
+
+    except Exception as e:
         return jsonify({
             "code": 500,
             "message": str(e)
