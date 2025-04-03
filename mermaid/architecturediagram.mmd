@@ -1,0 +1,33 @@
+---
+id: 4cc017e4-1128-407a-9665-b9b63daf8693
+---
+flowchart TD
+ subgraph Kong["Kong"]
+        P1["Rate Limiting"]
+        K["Kong API Gateway"]
+        P2["JWT Verification"]
+        P3["Request Transformer"]
+        P4["Prometheus Metrics"]
+  end
+    A["Web Frontend"] -- HTTP/HTTPS --> K
+    B["Mobile App"] -- gRPC --> K
+    C["Partner API"] -- OAuth2 --> K
+    K -- Routing --> D["Requirements Service"]
+    K -- AuthN/Z --> E["User Profile Service"]
+    K -- Load Balancing --> F["Recommendation Service"]
+    K -- Circuit Breaking --> G["Inventory Service"]
+    K -- Logging --> H["Analytics Service"]
+    D --> F
+    F --> G & I["Compatibility Service"]
+    E --> F
+    G --> J["Payment Service"]
+    J --> L["Order Service"]
+    L --> M["Fulfillment Service"] & N["Refund Service"]
+    N --> G & H
+    I -- Reads --> DB1[("Compatibility DB")]
+    E -- CRUD --> DB2[("User Profiles")]
+    H -- Writes --> DB3[("Analytics Warehouse")]
+    K -.-> P1 & P2 & P3 & P4
+    legend["Legend"] -- Green Arrow --> Secure["Secure"]
+    legend -- Blue Arrow --> Internal["Internal"]
+    legend -- Orange Arrow --> Data["Data"]
