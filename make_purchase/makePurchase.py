@@ -1,4 +1,6 @@
 from flask import Flask, jsonify, request
+from dotenv import load_dotenv
+load_dotenv()
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
@@ -9,8 +11,7 @@ import uuid
 import sys
 from os import environ
 import json
-from dotenv import load_dotenv
-load_dotenv()
+
 
 
 app = Flask(__name__)
@@ -28,7 +29,8 @@ channel = connection.channel()
 # Relevant REST APIs (microservices)
 customerURL = environ.get('customerURL')
 recommendationURL = environ.get("recommendationURL")
-partURL = environ.get("partURL")
+partgetURL = environ.get("partgetURL")
+partpostURL = environ.get("partpostURL")
 deliveryURL = environ.get("deliveryURL")
 stripeURL = environ.get("stripeURL")
 
@@ -63,13 +65,22 @@ def make_purchase():
     recommendation_id = data["recommendation_id"]
     customer_id = data["customer_id"]
     
+    
     #2. get recommendation details (parts list) GET request
-    recommendation = invoke_http(f"{recommendationURL}/{recommendation_id}", method="GET")
+    print("DEBUG recommendationURL:", recommendationURL)
+    full_url = f"{recommendationURL}/{recommendation_id}"
+    print("DEBUG FULL URL:", full_url)
+
+    recommendation = invoke_http(full_url, method="GET")
+
+    # recommendation = invoke_http(f"{recommendationURL}/{recommendation_id}", method="GET")
+    print("DEBUG RECOMMENDATION RESPONSE:", recommendation)
+
     if recommendation.get("code") != 200:
         return jsonify (
             {
                 "code":404,
-                "message": "Reccomendation not found"
+                "message": "Recomendation not found"
             }
         ), 404
         
@@ -78,7 +89,7 @@ def make_purchase():
     
     for parts in parts_list:
         part_id = parts["part_id"]
-        part = invoke_http(f"{partURL}/{part_id}", method="GET")
+        part = invoke_http(f"{partgetURL}?ComponentId={part_id}", method="GET") 
         if part.get("code") != 200:
             return jsonify (
                 {
@@ -87,18 +98,21 @@ def make_purchase():
                 }
             ), 404
             
-        stock = part["data"]["available"] #boolen option; stock available or no?
+        stock = part["data"]["Stock"] #boolen option; stock available or no?
         
-        if stock:
+        if stock>0:
             available_parts.append(
                 {
-                    "part_id":part_id,
-                    "price":part["data"]["price"],
-                    "qunatity":part["data"]["quantity"],
-                    "availability":part["data"]["availability"],
-                    "description":part["data"]["description"]
+                    "Id":part_id,
+                    "Name":part["data"]["Name"],
+                    "Price":part["data"]["Price"],
+                    "Stock":part["data"]["Stock"],
+                    "ImageUrl":part["data"]["ImageUrl"],
+                    "CreatedAt":part["data"]["CreatedAt"],
+                    "CategoryId":part["data"]["CategoryId"],
                 }
             )
+            
             
     #3. get customer entirety of customer details (GET request)
     customer = invoke_http(f"{customerURL}/{customer_id}", method="GET")
@@ -112,16 +126,25 @@ def make_purchase():
         
     customer_details = customer["data"]
     
+    
     #5. initiate payment via stripe
     total_price = 0
     for part in available_parts:
-        total_price += part["price"]
+        total_price += part["Price"]
+        
     payment_payload = {
         "customer_id": customer_id,
         "amount": total_price,
-        "email": customer_details["email"]
+        "customer_email": customer_details["email"],
+        "product_name": "Purchase from ByteMe",
+        "success_url": "http://localhost:3000/success",  # 👈 Adjust as needed
+        "cancel_url": "http://localhost:3000/cancel",    # 👈 Adjust as needed
+        "metadata": {
+            "customer_id": customer_id
+        }
     }
-    payment_response = invoke_http(stripeURL, method="POST", json=payment_payload)
+    
+    payment_response = invoke_http(f"{stripeURL}/create-checkout-session", method="POST", json=payment_payload)
     
     if payment_response.get("code") != 200:
         return jsonify(
@@ -132,8 +155,10 @@ def make_purchase():
             }
         ), 402
         
+    order_id = payment_response["data"]["payment_intent_id"]
+    checkout_url = payment_response["data"]["checkout_url"]
+        
     #6. place order via amqp
-    order_id = str(uuid.uuid4())
     timestamp = datetime.now().isoformat()
     order_data = {
         "order_id": order_id,
@@ -143,30 +168,47 @@ def make_purchase():
         "status": "confirmed" 
     }
 
-    send_amqp_message(exchange_name, "order.create", order_data)
+    order_response = invoke_http(f"{environ.get('orderURL')}/order", method="POST", json=order_data)
+    
     
     # 7. Update parts stock count via AMQP
-    for part in available_parts:
-        new_qty = part["quantity"]-1
-        part_data = {
-            "part_id": part["part_id"],
-            "description": part["descirption"],
-            "quantity": max(0, new_qty),
-            "available": new_qty > 0
-        }
+    # for part in available_parts:
+    #     new_qty = part["Stock"]-1
+    #     part_data = {
+    #         "Id": part["part_id"],
+    #         "Name":part["data"]["Name"],
+    #         "Price":part["data"]["Price"],
+    #         "Stock": max(0, new_qty),
+    #         "ImageUrl":part["ImageUrl"],
+    #         "CreatedAt":part["CreatedAt"],
+    #         "CategoryId": part["CategoryId"],
+    #     }
         
-        send_amqp_message(exchange_name, "parts.task", part_data)
+    #     invoke_http(f"{partpostURL}/{part['part_id']}", method="PUT", json=part_data)
         
         
     #8. send delivery task to delivery queue via amqp
-
     delivery_data = {
         "order_id":order_id,
         "customer_id":customer_id,
         "parts_list":available_parts
     }
     
-    send_amqp_message(exchange_name, "delivery.task", delivery_data)
+    delivery_response = invoke_http(f"{deliveryURL}/delivery", method="POST", json=delivery_data)
+    
+    if delivery_response.get("code") != 201:
+        return jsonify({"code": 500, "message": "Failed to create delivery"}), 500
+    
+    
+    # Return final confirmation
+    return jsonify({
+        "code": 200,
+        "message": "Purchase completed successfully",
+        "data": {
+            "order_id": order_id,
+            "checkout": payment_response.get("data", {})  # you can tweak this
+        }
+    }), 200
 
 
 if __name__ == "__main__":

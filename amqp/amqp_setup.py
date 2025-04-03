@@ -5,8 +5,9 @@ from os import environ
 import sys
 import os
 import logging
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../stripe')))
-from amqp.config import Config
+# sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../stripe')))
+# from amqp.config import Config
+from config import Config
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -29,68 +30,21 @@ EXCHANGES = {
 """
 This function creates a channel (connection) and establishes connection with AMQP server
 """
-def create_channel():
-    connection = pika.BlockingConnection(
-        pika.ConnectionParameters(
-            host=amqp_host,
-            port=amqp_port,
-            heartbeat=3600,
-            blocked_connection_timeout=3600,  # these parameters to prolong the expiration time (in seconds) of the connection
-        ))
-
-    channel = connection.channel()  # connection to the AMQP server is created
-    channel.exchange_declare(exchange=exchange_name, exchange_type=exchange_type, durable=True)  # 'durable' makes the exchange survive broker restarts
-
-    return connection, channel
-
-"""
-function to create the required queues
-"""
-def create_queue(channel, exchange_name, queue_name, routing_key):
-    print(f"Bind to queue: {queue_name}")
-    channel.queue_declare(queue=queue_name, durable=True)  # 'durable' makes the queue survive broker restarts
-    channel.queue_bind(exchange=exchange_name, queue=queue_name, routing_key=routing_key)  # bind the queue to the exchange via the routing_key
-
-def setup_rabbitmq():
-    connection, channel = create_channel()
-    create_queue(channel, exchange_name, "Order", "order.create")
-    create_queue(channel, exchange_name, "Delivery", "delivery.#")
-    create_queue(channel, exchange_name, "Parts", "parts.#")
-
-"""
-This function in this module sets up a connection and a channel to a local AMQP broker,
-and declares a 'topic' exchange to be used by the microservices in the solution.
-"""
-def check_setup():
-    # The shared connection and channel created when the module is imported may be expired,
-    # timed out, disconnected by the broker or a client;
-    # - re-establish the connection/channel is they have been closed
-    global connection, channel, amqp_host, amqp_port, exchange_name, exchange_type
-
-    if not is_connection_open(connection):
+def get_rabbitmq_connection():
+    try:
         connection = pika.BlockingConnection(
             pika.ConnectionParameters(
                 host=amqp_host,
                 port=amqp_port,
                 heartbeat=3600,
-                blocked_connection_timeout=3600))  # re
-
-    if channel.is_closed:
-        channel = connection.channel()
-        channel.exchange_declare(exchange=exchange_name, exchange_type=exchange_type, durable=True)
-
-def is_connection_open(connection):
-    """Check if a connection is still open"""
-    try:
-        if connection is None:
-            return False
-        connection.process_data_events()
-        return True
-    except pika.exceptions.AMQPError as e:
-        logger.error(f"AMQP Error: {str(e)}")
-        logger.info("Creating a new connection...")
-        return False
-
+                blocked_connection_timeout=3600,  # these parameters to prolong the expiration time (in seconds) of the connection
+            ))
+        return connection
+    except Exception as e:
+        logger.error(f"Failed to connect to RabbitMQ: {str(e)}")
+        return None
+    
+    
 def create_channel():
     """Create a channel and ensure all exchanges exist"""
     connection = get_rabbitmq_connection()
@@ -113,6 +67,7 @@ def create_channel():
     
     return connection, channel
 
+
 def create_queue(channel, exchange_name, queue_name, routing_key):
     """Create a queue and bind it to an exchange"""
     try:
@@ -127,6 +82,7 @@ def create_queue(channel, exchange_name, queue_name, routing_key):
     except Exception as e:
         logger.error(f"Failed to create queue {queue_name}: {str(e)}")
         return False
+
 
 def setup_all_queues():
     """Set up all queues needed by the system"""
@@ -153,6 +109,7 @@ def setup_all_queues():
         if connection and connection.is_open:
             connection.close()
         return False
+
 
 def publish_message(exchange_name, routing_key, message):
     """Publish a message to an exchange"""
