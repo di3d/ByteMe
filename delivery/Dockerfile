@@ -27,4 +27,4 @@ COPY . .
 EXPOSE 5003
 
 # Run the schema initialization script before starting the app
-CMD ["sh", "-c", "python init_schema.py && python app.py"]
+CMD ["sh", "-c", "python app.py"]
