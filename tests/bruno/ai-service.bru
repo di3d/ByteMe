@@ -1,0 +1,18 @@
+meta {
+  name: ai-service
+  type: http
+  seq: 2
+}
+
+post {
+  url: http://localhost:8000/ai
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+      "model": "deepseek-r1",
+      "prompt": "Suggest a gaming PC build under $1000"
+  }
+}
