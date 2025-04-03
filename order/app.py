@@ -168,6 +168,48 @@ def create_order():
             "message": str(e)
         }), 500
 
+@app.route("/order", methods=['GET'])
+def get_all_orders():
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT order_id, customer_id, parts_list, status, timestamp
+            FROM orders
+        """)
+        orders = cursor.fetchall()  # Fetch all results
+
+        cursor.close()
+        conn.close()
+
+        if orders:
+            order_list = []
+            for order in orders:
+                order_list.append({
+                    "order_id": order[0],
+                    "customer_id": order[1],
+                    "parts_list": order[2],
+                    "status": order[3],
+                    "timestamp": order[4].isoformat()
+                })
+
+            return jsonify({
+                "code": 200,
+                "data": order_list
+            }), 200
+        else:
+            return jsonify({
+                "code": 404,
+                "message": "No orders found"
+            }), 404
+
+    except Exception as e:
+        return jsonify({
+            "code": 500,
+            "message": str(e)
+        }), 500
+
 if __name__ == '__main__':
     # Only ensure the database exists, no table initialization
     try:
