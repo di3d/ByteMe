@@ -4,6 +4,7 @@ import os
 from os import environ
 import sys
 import os
+import logging
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../stripe')))
 from amqp.config import Config
 
