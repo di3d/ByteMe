@@ -211,9 +211,12 @@ def start_email_worker():
         # Initialize AMQP
         amqp_setup.check_setup()
         
-        # Get a connection and channel
-        connection = amqp_setup.get_rabbitmq_connection()
-        channel = connection.channel()
+        # Get a connection and channel using create_channel()
+        connection, channel = amqp_setup.create_channel()
+        
+        if not channel:
+            logger.error("❌ Failed to create RabbitMQ channel")
+            return
         
         # Declare queue (in case it doesn't exist)
         channel.queue_declare(queue='EmailNotifications', durable=True)

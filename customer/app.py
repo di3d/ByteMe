@@ -20,7 +20,7 @@ def ensure_database_exists():
     """Ensure the customer_db database exists"""
     try:
         conn = psycopg2.connect(
-            dbname="postgres",
+            dbname=DB_PARAMS["dbname"],
             user=DB_PARAMS["user"],
             password=DB_PARAMS["password"],
             host=DB_PARAMS["host"],
@@ -50,27 +50,27 @@ def get_db_connection():
     conn = psycopg2.connect(**DB_PARAMS)
     return conn
 
-def initialize_tables():
-    """Initialize the database tables"""
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
+# def initialize_tables():
+#     """Initialize the database tables"""
+#     try:
+#         conn = get_db_connection()
+#         cursor = conn.cursor()
         
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS customers (
-                id VARCHAR PRIMARY KEY,
-                name VARCHAR NOT NULL,
-                address VARCHAR NOT NULL,
-                email VARCHAR NOT NULL
-            )
-        """)
-        conn.commit()
-        cursor.close()
-        conn.close()
-        print("Customer tables initialized successfully")
-    except Exception as e:
-        print(f"Error initializing tables: {str(e)}")
-        raise
+#         cursor.execute("""
+#             CREATE TABLE IF NOT EXISTS customers (
+#                 id VARCHAR PRIMARY KEY,
+#                 name VARCHAR NOT NULL,
+#                 address VARCHAR NOT NULL,
+#                 email VARCHAR NOT NULL
+#             )
+#         """)
+#         conn.commit()
+#         cursor.close()
+#         conn.close()
+#         print("Customer tables initialized successfully")
+#     except Exception as e:
+#         print(f"Error initializing tables: {str(e)}")
+#         raise
 
 @app.route("/customer/<string:customer_id>", methods=['GET'])
 def get_customer(customer_id):
@@ -79,9 +79,9 @@ def get_customer(customer_id):
         cursor = conn.cursor()
         
         cursor.execute("""
-            SELECT id, name, address, email 
+            SELECT customer_id, name, address, email 
             FROM customers 
-            WHERE id = %s
+            WHERE customer_id = %s
         """, (customer_id,))
         customer_data = cursor.fetchone()
         
@@ -127,7 +127,7 @@ def create_customer():
         # Check if customer already exists
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT id FROM customers WHERE id = %s", (data["customer_id"],))
+        cursor.execute("SELECT customer_id FROM customers WHERE customer_id = %s", (data["customer_id"],))
         if cursor.fetchone():
             cursor.close()
             conn.close()
@@ -139,9 +139,9 @@ def create_customer():
         # Create new customer
         cursor.execute(
             """
-            INSERT INTO customers (id, name, address, email)
+            INSERT INTO customers (customer_id, name, address, email)
             VALUES (%s, %s, %s, %s)
-            RETURNING id, name, address, email
+            RETURNING customer_id, name, address, email
             """,
             (
                 data["customer_id"],
@@ -181,9 +181,9 @@ def create_customer():
 if __name__ == '__main__':
     try:
         ensure_database_exists()
-        initialize_tables()
+        # initialize_tables()
     except Exception as e:
-        print(f"Failed to initialize database: {str(e)}")
+        print(f"Failed to find database: {str(e)}")
         exit(1)
     
     app.run(host='0.0.0.0', port=5001)

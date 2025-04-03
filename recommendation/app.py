@@ -25,7 +25,7 @@ def ensure_database_exists():
     try:
         # Connect to the default 'postgres' database to check/create our database
         conn = psycopg2.connect(
-            dbname="postgres",
+            dbname=DB_PARAMS["dbname"],
             user=DB_PARAMS["user"],
             password=DB_PARAMS["password"],
             host=DB_PARAMS["host"],
@@ -56,29 +56,29 @@ def get_db_connection():
     conn = psycopg2.connect(**DB_PARAMS)
     return conn
 
-def initialize_tables():
-    """Initialize the database tables for recommendation service"""
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
+# def initialize_tables():
+#     """Initialize the database tables for recommendation service"""
+#     try:
+#         conn = get_db_connection()
+#         cursor = conn.cursor()
         
-        # Recommendation table schema
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS recommendations (
-                recommendation_id VARCHAR PRIMARY KEY,
-                customer_id VARCHAR NOT NULL,
-                parts_list JSONB NOT NULL,
-                timestamp TIMESTAMP NOT NULL
-            )
-        """)
+#         # Recommendation table schema
+#         cursor.execute("""
+#             CREATE TABLE IF NOT EXISTS recommendations (
+#                 recommendation_id VARCHAR PRIMARY KEY,
+#                 customer_id VARCHAR NOT NULL,
+#                 parts_list JSONB NOT NULL,
+#                 timestamp TIMESTAMP NOT NULL
+#             )
+#         """)
         
-        conn.commit()
-        cursor.close()
-        conn.close()
-        print("Recommendation tables initialized successfully")
-    except Exception as e:
-        print(f"Error initializing recommendation tables: {str(e)}")
-        raise
+#         conn.commit()
+#         cursor.close()
+#         conn.close()
+#         print("Recommendation tables initialized successfully")
+#     except Exception as e:
+#         print(f"Error initializing recommendation tables: {str(e)}")
+#         raise
 
 @app.route("/recommendation/<string:recommendation_id>", methods=['GET'])
 def get_recommendation(recommendation_id):
@@ -193,7 +193,7 @@ if __name__ == '__main__':
     # First ensure database exists, then initialize tables
     try:
         ensure_database_exists()
-        initialize_tables()
+        # initialize_tables()
     except Exception as e:
         print(f"Failed to initialize database: {str(e)}")
         exit(1)

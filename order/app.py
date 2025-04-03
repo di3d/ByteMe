@@ -25,7 +25,7 @@ def ensure_database_exists():
     try:
         # Connect to the default 'postgres' database to check/create our database
         conn = psycopg2.connect(
-            dbname="postgres",
+            dbname=DB_PARAMS["dbname"],
             user=DB_PARAMS["user"],
             password=DB_PARAMS["password"],
             host=DB_PARAMS["host"],
@@ -193,9 +193,8 @@ def create_order():
             "message": str(e)
         }), 500
 
-@app.route("/orders", methods=['GET'])
+@app.route("/order", methods=['GET'])
 def get_all_orders():
-    """Fetch all orders from the database."""
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -204,27 +203,31 @@ def get_all_orders():
             SELECT order_id, customer_id, parts_list, status, timestamp
             FROM orders
         """)
-        orders = cursor.fetchall()
+        orders = cursor.fetchall()  # Fetch all results
 
         cursor.close()
         conn.close()
 
-        # Format the response
-        order_list = [
-            {
-                "order_id": order[0],
-                "customer_id": order[1],
-                "parts_list": order[2],
-                "status": order[3],
-                "timestamp": order[4].isoformat()
-            }
-            for order in orders
-        ]
+        if orders:
+            order_list = []
+            for order in orders:
+                order_list.append({
+                    "order_id": order[0],
+                    "customer_id": order[1],
+                    "parts_list": order[2],
+                    "status": order[3],
+                    "timestamp": order[4].isoformat()
+                })
 
-        return jsonify({
-            "code": 200,
-            "data": order_list
-        }), 200
+            return jsonify({
+                "code": 200,
+                "data": order_list
+            }), 200
+        else:
+            return jsonify({
+                "code": 404,
+                "message": "No orders found"
+            }), 404
 
     except Exception as e:
         return jsonify({
@@ -232,13 +235,13 @@ def get_all_orders():
             "message": str(e)
         }), 500
 
+
 if __name__ == '__main__':
-    # First ensure database exists, then initialize tables
+    # Only ensure the database exists, no table initialization
     try:
         ensure_database_exists()
-        initialize_tables()
     except Exception as e:
-        print(f"Failed to initialize database: {str(e)}")
+        print(f"Failed to ensure database exists: {str(e)}")
         exit(1)
     
     app.run(host='0.0.0.0', port=5002)

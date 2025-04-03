@@ -25,7 +25,7 @@ def ensure_database_exists():
     try:
         # Connect to the default 'postgres' database to check/create our database
         conn = psycopg2.connect(
-            dbname="postgres",
+            dbname=DB_PARAMS["dbname"],
             user=DB_PARAMS["user"],
             password=DB_PARAMS["password"],
             host=DB_PARAMS["host"],
@@ -56,30 +56,30 @@ def get_db_connection():
     conn = psycopg2.connect(**DB_PARAMS)
     return conn
 
-def initialize_tables():
-    """Initialize the database tables for delivery service"""
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
+# def initialize_tables():
+#     """Initialize the database tables for delivery service"""
+#     try:
+#         conn = get_db_connection()
+#         cursor = conn.cursor()
         
-        # Updated table schema with parts_list (JSON) and timestamp
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS deliveries (
-                delivery_id VARCHAR PRIMARY KEY,
-                order_id VARCHAR NOT NULL,
-                customer_id VARCHAR NOT NULL,
-                parts_list JSONB NOT NULL,
-                created_at TIMESTAMP NOT NULL,
-                updated_at TIMESTAMP NOT NULL
-            )
-        """)
-        conn.commit()
-        cursor.close()
-        conn.close()
-        print("Delivery tables initialized successfully")
-    except Exception as e:
-        print(f"Error initializing delivery tables: {str(e)}")
-        raise
+#         # Updated table schema with parts_list (JSON) and timestamp
+#         cursor.execute("""
+#             CREATE TABLE IF NOT EXISTS deliveries (
+#                 delivery_id VARCHAR PRIMARY KEY,
+#                 order_id VARCHAR NOT NULL,
+#                 customer_id VARCHAR NOT NULL,
+#                 parts_list JSONB NOT NULL,
+#                 created_at TIMESTAMP NOT NULL,
+#                 updated_at TIMESTAMP NOT NULL
+#             )
+#         """)
+#         conn.commit()
+#         cursor.close()
+#         conn.close()
+#         print("Delivery tables initialized successfully")
+#     except Exception as e:
+#         print(f"Error initializing delivery tables: {str(e)}")
+#         raise
 
 @app.route("/delivery/<string:delivery_id>", methods=['GET'])
 def get_delivery(delivery_id):
@@ -281,9 +281,9 @@ if __name__ == '__main__':
     # First ensure database exists, then initialize tables
     try:
         ensure_database_exists()
-        initialize_tables()
+        # initialize_tables()
     except Exception as e:
-        print(f"Failed to initialize database: {str(e)}")
+        print(f"Failed to detect database: {str(e)}")
         exit(1)
     
     app.run(host='0.0.0.0', port=5003)

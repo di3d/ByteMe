@@ -1,0 +1,8 @@
+_format_version: "3.0"
+services:
+  - name: ai-service
+    url: http://ollama:11434
+    routes:
+      - name: ai-route
+        paths: ["/ai"]
+        methods: ["POST"]  # Explicitly declare allowed methods
