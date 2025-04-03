@@ -20,7 +20,7 @@ def ensure_database_exists():
     """Ensure the customer_db database exists"""
     try:
         conn = psycopg2.connect(
-            dbname="postgres",
+            dbname=DB_PARAMS["dbname"],
             user=DB_PARAMS["user"],
             password=DB_PARAMS["password"],
             host=DB_PARAMS["host"],
