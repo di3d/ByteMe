@@ -1,12 +1,22 @@
+# unified_amqp_setup.py
 import pika
 import os
 from os import environ
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../stripe')))
+from amqp.config import Config
 
-# Note about AMQP connection: various network firewalls, filters, gateways (e.g., SMU VPN on wifi), may hinder the connections;
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Connection settings
-amqp_host = environ.get('rabbit_host') or 'localhost'
-amqp_port = environ.get('rabbit_port') or 5672
+# Force RabbitMQ to use IPv4 explicitly
+amqp_host = '127.0.0.1'  # Override any other configuration to ensure IPv4 usage
+amqp_port = Config.RABBITMQ_PORT or 5672
+amqp_user = Config.RABBITMQ_USER or 'guest'
+amqp_password = Config.RABBITMQ_PASSWORD or 'guest'
 
 # Define exchanges
 EXCHANGES = {
@@ -69,83 +79,107 @@ def check_setup():
         channel.exchange_declare(exchange=exchange_name, exchange_type=exchange_type, durable=True)
 
 def is_connection_open(connection):
-    # For a BlockingConnection in AMQP clients,
-    # when an exception happens when an action is performed,
-    # it likely indicates a broken connection.
-    # So, the code below actively calls a method in the 'connection' to check if an exception happens
+    """Check if a connection is still open"""
     try:
+        if connection is None:
+            return False
         connection.process_data_events()
         return True
     except pika.exceptions.AMQPError as e:
-        print("AMQP Error:", e)
-        print("...creating a new connection.")
+        logger.error(f"AMQP Error: {str(e)}")
+        logger.info("Creating a new connection...")
         return False
 
-# Initialize exchanges and queues
-def init_exchanges_and_queues():
-    """Initialize all exchanges and their queues"""
-    global connection, channel
+def create_channel():
+    """Create a channel and ensure all exchanges exist"""
+    connection = get_rabbitmq_connection()
+    if not connection:
+        return None, None
+        
+    channel = connection.channel()
     
-    # Create/verify exchanges
+    # Declare all exchanges
     for exchange_name, exchange_type in EXCHANGES.items():
-        channel.exchange_declare(
-            exchange=exchange_name, 
-            exchange_type=exchange_type, 
-            durable=True
+        try:
+            channel.exchange_declare(
+                exchange=exchange_name,
+                exchange_type=exchange_type,
+                durable=True
+            )
+            logger.info(f"Declared exchange: {exchange_name}")
+        except Exception as e:
+            logger.error(f"Failed to declare exchange {exchange_name}: {str(e)}")
+    
+    return connection, channel
+
+def create_queue(channel, exchange_name, queue_name, routing_key):
+    """Create a queue and bind it to an exchange"""
+    try:
+        logger.info(f"Binding queue: {queue_name} to exchange: {exchange_name} with routing key: {routing_key}")
+        channel.queue_declare(queue=queue_name, durable=True)
+        channel.queue_bind(
+            exchange=exchange_name,
+            queue=queue_name,
+            routing_key=routing_key
         )
+        return True
+    except Exception as e:
+        logger.error(f"Failed to create queue {queue_name}: {str(e)}")
+        return False
 
-    # Order-related queues
-    create_queue(
-        channel=channel,
-        exchange_name="order_topic",
-        queue_name="Order",
-        routing_key="order.create"
-    )
+def setup_all_queues():
+    """Set up all queues needed by the system"""
+    connection, channel = create_channel()
+    if not channel:
+        return False
     
-    create_queue(
-        channel=channel,
-        exchange_name="order_topic",
-        queue_name="Delivery",
-        routing_key="delivery.#"
-    )
+    try:
+        # Order-related queues
+        create_queue(channel, "order_topic", "Order", "order.create")
+        create_queue(channel, "order_topic", "Delivery", "delivery.#")
+        create_queue(channel, "order_topic", "Parts", "parts.#")
+        
+        # Notification queues
+        create_queue(channel, "notification", "EmailNotifications", "notification.#")
+        
+        # Payment/refund queues - THIS IS THE CRITICAL PART
+        create_queue(channel, "payment", "refund.request", "refund.request")
+        
+        connection.close()
+        return True
+    except Exception as e:
+        logger.error(f"Failed to setup queues: {str(e)}")
+        if connection and connection.is_open:
+            connection.close()
+        return False
+
+def publish_message(exchange_name, routing_key, message):
+    """Publish a message to an exchange"""
+    try:
+        connection = get_rabbitmq_connection()
+        if not connection:
+            raise Exception("No RabbitMQ connection available")
+
+        channel = connection.channel()
+        channel.basic_publish(
+            exchange=exchange_name,
+            routing_key=routing_key,
+            body=message,
+            properties=pika.BasicProperties(delivery_mode=2)  # Make message persistent
+        )
+        logger.info(f"Message published to exchange '{exchange_name}' with routing key '{routing_key}': {message}")
+        connection.close()
+    except Exception as e:
+        logger.error(f"Failed to publish message: {str(e)}")
+
+def check_setup():
+    """Check if the RabbitMQ setup is working"""
+    connection = get_rabbitmq_connection()
+    if not connection:
+        return False
     
-    create_queue(
-        channel=channel,
-        exchange_name="order_topic",
-        queue_name="Parts",
-        routing_key="parts.#"
-    )
+    connection.close()
+    return True
 
-    # Notification queues
-    create_queue(
-        channel=channel,
-        exchange_name="notification",
-        queue_name="EmailNotifications",
-        routing_key="notification.#"
-    )
-
-    # Payment/Refund queues
-    create_queue(
-        channel=channel,
-        exchange_name="payment",
-        queue_name="stripe_refund_requests",
-        routing_key="refund.request"
-    )
-    
-    create_queue(
-        channel=channel,
-        exchange_name="payment",
-        queue_name="stripe_refund_responses",
-        routing_key="refund.response"
-    )
-
-# Create initial connection
-connection, channel = create_channel(
-    hostname=amqp_host,
-    port=amqp_port,
-    exchange_name="order_topic",  # Default exchange
-    exchange_type="topic"
-)
-
-# Initialize all exchanges and queues
-init_exchanges_and_queues()
+# Initialize when module is imported
+setup_all_queues()

@@ -207,13 +207,13 @@ def start_email_worker():
         if not verify_sendgrid():
             logger.error("❌ Cannot start email worker - SendGrid not configured")
             return
-        
+            
         # Initialize AMQP
         amqp_setup.check_setup()
         
-        # Get a connection and channel
-        connection = amqp_setup.get_rabbitmq_connection()
-        channel = connection.channel()
+        # Create a new channel
+        connection = amqp_setup.connection  # Ensure connection is exposed in amqp_setup
+        channel = connection.channel()  # Create a new channel
         
         # Declare queue (in case it doesn't exist)
         channel.queue_declare(queue='EmailNotifications', durable=True)

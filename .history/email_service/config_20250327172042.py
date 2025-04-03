@@ -21,10 +21,10 @@ class EmailConfig:
     # Service configuration
     DEBUG_MODE = os.getenv('EMAIL_DEBUG', 'False').lower() in ('true', '1', 't')
     QUEUE_EMAIL_REQUESTS = os.getenv('QUEUE_EMAIL_REQUESTS', 'email_requests')
-    RABBITMQ_HOST = os.getenv('RABBITMQ_HOST', 'localhost')  # Note the quotes around 'localhost'
-    RABBITMQ_PORT = int(os.getenv('RABBITMQ_PORT', '5672'))  # Use string '5672'
-    RABBITMQ_USER = os.getenv('RABBITMQ_USER', 'guest')
-    RABBITMQ_PASS = os.getenv('RABBITMQ_PASS', 'guest')
+    RABBITMQ_HOST=localhost
+    RABBITMQ_PORT=5672
+    RABBITMQ_USER=guest
+    RABBITMQ_PASS=guest
     
     @classmethod
     def get_rabbitmq_connection(cls):

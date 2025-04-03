@@ -4,261 +4,147 @@ A comprehensive wrapper service for Stripe payment processing that provides simp
 
 ## Quick Start
 
-```bash
-# Clone the repository
-git clone https://github.com/yourusername/ByteMe.git
-cd ByteMe/stripe
+1. Clone the repository.
+2. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+3. Configure environment variables in a `.env` file:
+   ```env
+   STRIPE_SECRET_KEY=sk_test_...
+   STRIPE_PUBLISHABLE_KEY=pk_test_...
 
-# Set up a virtual environment
-python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Create a .env file with your Stripe keys (see Configuration section)
-touch .env
-
-# Start the service
-python app.py
-```
-
-Your service is now running at http://localhost:5000!
+   RABBITMQ_HOST=localhost
+   RABBITMQ_PORT=5672
+   RABBITMQ_USER=guest
+   RABBITMQ_PASSWORD=guest
+   ```
+4. Start the service:
+   ```bash
+   python app.py
+   ```
 
 ## Features
 
-- **✅ Checkout Sessions**: Create Stripe checkout pages with a single API call
-- **✅ Direct Payment Intents**: For custom payment UIs
-- **✅ Refund Processing**: Both synchronous and asynchronous options
-- **✅ Webhook Handling**: Process Stripe events securely
-- **✅ Fault Tolerance**: Falls back to synchronous processing if RabbitMQ is unavailable
-- **✅ CORS Support**: Works with frontend applications on different domains
+- **Checkout Sessions**: Create Stripe-hosted checkout pages.
+- **Asynchronous Refunds**: Queue refunds for background processing.
+- **RESTful APIs**: Simple HTTP endpoints for all payment operations.
 
-## Why Use This Wrapper?
+## Payment Flow
 
-- **Simplified Integration**: Clean REST APIs that hide Stripe's complexity
-- **Asynchronous Processing**: Fire-and-forget refunds and webhook handling
-- **Fault Tolerance**: Graceful degradation when RabbitMQ is unavailable
-- **Ready for Production**: Modular design, error handling, and logging built-in
+### Step-by-Step Explanation
 
-## Configuration
+1. **Create Checkout Session**:
+   - **Endpoint**: `POST /create-checkout-session`
+   - **Description**: Creates a Stripe checkout session for a one-time payment.
+   - **Flow**:
+     - The frontend sends a request to this endpoint with the product details (e.g., price, quantity).
+     - The backend uses the Stripe API to create a checkout session.
+     - The session URL is returned to the frontend, which redirects the customer to Stripe's hosted checkout page.
 
-Create a `.env` file in the project root with the following variables:
-````
-STRIPE_SECRET_KEY=sk_test_...
-STRIPE_PUBLISHABLE_KEY=pk_test_...
-STRIPE_WEBHOOK_SECRET=whsec_...
+   **Request Body**:
+   ```json
+   {
+     "amount": 10000,
+     "customer_email": "user@example.com",
+     "currency": "sgd",
+     "product_name": "Custom PC Build",
+     "metadata": {
+       "build_name": "Custom PC Build"
+     },
+     "success_url": "http://yourdomain.com/success?session_id={CHECKOUT_SESSION_ID}",
+     "cancel_url": "http://yourdomain.com/checkout?canceled=true"
+   }
+   ```
 
-RABBITMQ_HOST=localhost
-RABBITMQ_PORT=5672
-RABBITMQ_USER=guest
-RABBITMQ_PASSWORD=guest
-```
+   **Response**:
+   ```json
+   {
+     "url": "https://checkout.stripe.com/..."
+   }
+   ```
 
-## Running the Service
+2. **Retrieve Checkout Session**:
+   - **Endpoint**: `GET /checkout-session?session_id=cs_test_...`
+   - **Description**: Retrieves details about a checkout session.
+   - **Flow**:
+     - After a successful payment, the frontend retrieves the session details to display a confirmation page.
+     - The backend uses the Stripe API to fetch the session details.
 
-Start the service with:
+   **Response**:
+   ```json
+   {
+     "payment_intent": "pi_...",
+     "amount_total": 10000,
+     "currency": "sgd",
+     "customer_email": "user@example.com",
+     "payment_status": "paid",
+     "metadata": {}
+   }
+   ```
 
-```
-python app.py
-```
+## Refund Flow
 
-This will:
-- Initialize the RabbitMQ queues
-- Start the background refund processing worker
-- Start the Flask API server on port 5000
+### Step-by-Step Explanation
 
-## API Endpoints
+1. **Initiate Refund (Asynchronous)**:
+   - **Endpoint**: `POST /refund-async`
+   - **Description**: Processes a refund request and returns a success response.
+   - **Flow**:
+     - The frontend or composite service sends a refund request to this endpoint with the payment intent ID and refund amount.
+     - The backend verifies the payment intent and processes the refund using the Stripe API.
 
-### Checkout
+   **Request Body**:
+   ```json
+   {
+     "payment_intent_id": "pi_...",
+     "amount": 5000
+   }
+   ```
 
-#### `POST /create-checkout-session`
+   **Response**:
+   ```json
+   {
+     "success": true,
+     "message": "Refund request processed successfully",
+     "payment_intent": "pi_...",
+     "amount": 5000
+   }
+   ```
 
-Create a Stripe checkout session for a one-time payment.
+2. **Check Refund Status**:
+   - **Endpoint**: `GET /refund-status/{request_id}?payment_intent_id=pi_...`
+   - **Description**: Checks the status of a refund.
+   - **Flow**:
+     - The frontend or composite service periodically checks the refund status using this endpoint.
+     - The backend queries the Stripe API or a database (if implemented) to retrieve the refund status.
 
-**Request Body:**
-```json
-{
-  "line_items": [
-    {
-      "price_data": {
-        "currency": "sgd",
-        "product_data": {
-          "name": "Product Name"
-        },
-        "unit_amount": 10000
-      },
-      "quantity": 1
-    }
-  ],
-  "success_url": "http://yourdomain.com/success?session_id={CHECKOUT_SESSION_ID}",
-  "cancel_url": "http://yourdomain.com/cancel"
-}
-```
-
-**Response:**
-```json
-{
-  "url": "https://checkout.stripe.com/..."
-}
-```
-
-#### `GET /checkout-session?session_id=cs_test_...`
-
-Retrieve details about a checkout session.
-
-**Response:**
-```json
-{
-  "payment_intent": "pi_...",
-  "amount_total": 10000,
-  "currency": "sgd",
-  "customer_email": "customer@example.com",
-  "payment_status": "paid",
-  "metadata": {}
-}
-```
-
-### Payment Intents
-
-#### `POST /payment-intent`
-
-Create a payment intent for custom payment flows.
-
-**Request Body:**
-```json
-{
-  "amount": 10000,
-  "currency": "sgd"
-}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "clientSecret": "pi_..._secret_...",
-  "paymentIntentId": "pi_..."
-}
-```
-
-#### `GET /payment-intent/{payment_intent_id}`
-
-Get details about a payment intent.
-
-**Response:**
-```json
-{
-  "id": "pi_...",
-  "amount": 10000,
-  "currency": "sgd",
-  "status": "succeeded",
-  "metadata": {}
-}
-```
-
-### Refunds
-
-#### `POST /refund`
-
-Process a refund synchronously.
-
-**Request Body:**
-```json
-{
-  "payment_intent_id": "pi_...",
-  "amount": 5000,
-  "reason": "requested_by_customer"
-}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "refund": {
-    "id": "re_...",
-    "amount": 5000,
-    "status": "succeeded"
-  }
-}
-```
-
-#### `POST /refund-async`
-
-Queue a refund to be processed asynchronously.
-
-**Request Body:**
-```json
-{
-  "payment_intent_id": "pi_...",
-  "amount": 5000,
-  "request_id": "unique-id-123"
-}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Refund request queued successfully",
-  "request_id": "unique-id-123"
-}
-```
-
-#### `GET /refund-status/{request_id}?payment_intent_id=pi_...`
-
-Check the status of an asynchronous refund.
-
-**Response:**
-```json
-{
-  "success": true,
-  "refund_id": "re_...",
-  "status": "succeeded",
-  "amount": 5000,
-  "request_id": "unique-id-123"
-}
-```
-
-### Webhooks
-
-#### `POST /webhook`
-
-Handle Stripe webhook events.
-
-**Headers:**
-- `Stripe-Signature`: Webhook signature from Stripe
-
-**Response:**
-```json
-{
-  "success": true
-}
-```
+   **Response**:
+   ```json
+   {
+     "success": true,
+     "refund_id": "re_...",
+     "status": "succeeded",
+     "amount": 5000,
+     "request_id": "unique-id-123"
+   }
+   ```
 
 ## Asynchronous Refund Processing
 
-This service implements a fire-and-forget pattern for refund processing using RabbitMQ:
+This service implements a simple refund processing flow:
 
-1. Client makes a request to `/refund-async`
-2. Request is queued in `stripe_refund_requests` queue
-3. Background worker processes the refund
-4. Result is published to `stripe_refund_responses` queue
-5. Client can check status via `/refund-status/{request_id}`
-
-This approach provides several benefits:
-- Improved user experience (no waiting for processing)
-- Better system resilience (refunds continue even if client disconnects)
-- Scalable processing (multiple workers can process refunds)
+1. Client makes an HTTP request to `/refund-async`.
+2. The Stripe microservice verifies the payment intent and processes the refund using the Stripe API.
+3. A success response is returned to the client (e.g., the composite service in Scenario 3).
+4. The composite service can use this response to notify the user or perform additional actions.
 
 ### Real-world Considerations
 
 In production environments:
-- Add a persistent database to store refund requests and statuses
-- Implement retry logic for failed refunds
-- Add monitoring and alerting for the message queue
-- Consider using webhooks from Stripe to update refund statuses
+- Add a persistent database to store refund requests and statuses.
+- Implement retry logic for failed refunds.
+- Add monitoring and alerting for refund processing.
 
 ## Integration Example
 
@@ -271,16 +157,15 @@ const createCheckout = async () => {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      line_items: [{
-        price_data: {
-          currency: 'sgd',
-          product_data: { name: 'Product' },
-          unit_amount: 10000,
-        },
-        quantity: 1,
-      }],
+      amount: 10000,
+      customer_email: "user@example.com",
+      currency: 'sgd',
+      product_name: "Custom PC Build",
+      metadata: {
+        build_name: "Custom PC Build"
+      },
       success_url: `${window.location.origin}/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${window.location.origin}/cancel`,
+      cancel_url: `${window.location.origin}/checkout?canceled=true`,
     })
   });
   
@@ -295,10 +180,17 @@ const processRefund = async (paymentIntentId) => {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       payment_intent_id: paymentIntentId,
+      amount: 5000
     })
   });
-  
-  return await response.json();
+
+  const data = await response.json();
+
+  if (data.success) {
+    console.log('Refund processed successfully:', data);
+  } else {
+    console.error('Refund failed:', data.error);
+  }
 };
 ```
 

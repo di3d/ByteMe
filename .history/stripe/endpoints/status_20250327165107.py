@@ -1,6 +1,6 @@
 from flask import jsonify
 from config import Config
-from endpoints.blueprint_registry import status_bp
+from endpoints.init import status_bp
 
 @status_bp.route('/', methods=['GET'])
 def home():

@@ -4,7 +4,7 @@ import stripe
 import json
 import time
 from config import Config
-from endpoints.blueprint_registry import refund_bp
+from endpoints.init import refund_bp
 import sys
 import os
 

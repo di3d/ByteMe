@@ -25,6 +25,11 @@ services:
     ports:
       - "5444:5432"
     restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U esduser -d default"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
@@ -37,7 +42,11 @@ services:
       - "5001:5001"
     environment:
       - FLASK_APP=app.py
-      - RUNNING_IN_DOCKER=true
+      - DB_HOST=host.docker.internal  # Use host.docker.internal to connect to the host machine
+      - DB_PORT=5444  # Host machine's PostgreSQL port
+      - DB_NAME=customer_db
+      - DB_USER=esduser
+      - DB_PASSWORD=esduser
     depends_on:
       postgres:
         condition: service_healthy
@@ -51,7 +60,11 @@ services:
       - "5002:5002"
     environment:
       - FLASK_APP=app.py
-      - RUNNING_IN_DOCKER=true
+      - DB_HOST=host.docker.internal
+      - DB_PORT=5444
+      - DB_NAME=order_db
+      - DB_USER=esduser
+      - DB_PASSWORD=esduser
     depends_on:
       postgres:
         condition: service_healthy
@@ -65,7 +78,11 @@ services:
       - "5003:5003"
     environment:
       - FLASK_APP=app.py
-      - RUNNING_IN_DOCKER=true
+      - DB_HOST=host.docker.internal
+      - DB_PORT=5444
+      - DB_NAME=delivery_db
+      - DB_USER=esduser
+      - DB_PASSWORD=esduser
     depends_on:
       postgres:
         condition: service_healthy
@@ -79,13 +96,15 @@ services:
       - "5004:5004"
     environment:
       - FLASK_APP=app.py
-      - RUNNING_IN_DOCKER=true
+      - DB_HOST=host.docker.internal
+      - DB_PORT=5444
+      - DB_NAME=recommendation_db
+      - DB_USER=esduser
+      - DB_PASSWORD=esduser
     depends_on:
       postgres:
         condition: service_healthy
 
-volumes:
-  postgres_data:
   
   # # Make Purchase microservice
   # make_purchase:
@@ -120,5 +139,7 @@ volumes:
   #     - FLASK_ENV=development # Set Flask environment to development
   #     - RUNNING_IN_DOCKER=true
 
-networks:
-  kong-net:
+volumes:
+  postgres_data:
+# networks:
+#   kong-net:
