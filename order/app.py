@@ -25,7 +25,7 @@ def ensure_database_exists():
     try:
         # Connect to the default 'postgres' database to check/create our database
         conn = psycopg2.connect(
-            dbname="postgres",
+            dbname=DB_PARAMS["dbname"],
             user=DB_PARAMS["user"],
             password=DB_PARAMS["password"],
             host=DB_PARAMS["host"],

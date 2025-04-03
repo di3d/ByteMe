@@ -4,7 +4,6 @@ FROM python:3.9-slim
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
-ENV FLASK_APP=app.py
 ENV FLASK_ENV=development
 
 # Set working directory in the container
@@ -27,5 +26,5 @@ COPY . .
 # Expose the port the app runs on
 EXPOSE 5003
 
-# Command to run the application
-CMD ["flask", "run", "--host=0.0.0.0", "--port=5003"]
+# Run the schema initialization script before starting the app
+CMD ["sh", "-c", "python init_schema.py && python app.py"]
