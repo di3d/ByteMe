@@ -4,28 +4,28 @@ CREATE DATABASE order_db;
 CREATE DATABASE delivery_db;
 CREATE DATABASE recommendation_db;
 
--- -- Switch to customer_db and create tables
--- \c customer_db;
+-- Switch to customer_db and create tables
+\c customer_db;
 
--- CREATE TABLE IF NOT EXISTS customers (
---     customer_id SERIAL PRIMARY KEY,
---     name VARCHAR(255) NOT NULL,
---     email VARCHAR(255) UNIQUE NOT NULL,
---     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
---     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
--- );
+CREATE TABLE IF NOT EXISTS customers (
+    customer_id VARCHAR(255) PRIMARY KEY, -- Matches the "customer_id" field in app.py
+    name VARCHAR(255) NOT NULL,
+    address VARCHAR(255) NOT NULL, -- Added "address" field to match app.py
+    email VARCHAR(255) UNIQUE NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
--- -- Switch to order_db and create tables
--- \c order_db;
+-- Switch to order_db and create tables
+\c order_db;
 
--- CREATE TABLE IF NOT EXISTS orders (
---     order_id VARCHAR(255)L PRIMARY KEY,
---     customer_id VARCHAR(255) NOT NULL,
---     total_amount DECIMAL(10, 2) NOT NULL,
---     status VARCHAR(50) NOT NULL,
---     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
---     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
--- );
+CREATE TABLE IF NOT EXISTS orders (
+    order_id VARCHAR(255) PRIMARY KEY, -- Matches the "order_id" field in app.py
+    customer_id VARCHAR(255) NOT NULL, -- Matches the "customer_id" field in app.py
+    parts_list JSONB NOT NULL,         -- Matches the "parts_list" field in app.py
+    status VARCHAR(20) NOT NULL DEFAULT 'pending', -- Matches the "status" field in app.py
+    timestamp TIMESTAMP NOT NULL       -- Matches the "timestamp" field in app.py
+);
 
 -- Switch to delivery_db and create tables
 \c delivery_db;
@@ -40,13 +40,11 @@ CREATE TABLE IF NOT EXISTS deliveries (
 );
 
 -- Switch to recommendation_db and create tables
--- \c recommendation_db;
+\c recommendation_db;
 
--- CREATE TABLE IF NOT EXISTS recommendations (
---     recommendation_id SERIAL PRIMARY KEY,
---     customer_id INT NOT NULL,
---     product_id INT NOT NULL,
---     score DECIMAL(5, 2) NOT NULL,
---     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
---     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
--- );
+CREATE TABLE IF NOT EXISTS recommendations (
+    recommendation_id VARCHAR(255) PRIMARY KEY, -- Matches the "recommendation_id" field in app.py
+    customer_id VARCHAR(255) NOT NULL,         -- Matches the "customer_id" field in app.py
+    parts_list JSONB NOT NULL,                 -- Matches the "parts_list" field in app.py
+    timestamp TIMESTAMP NOT NULL               -- Matches the "timestamp" field in app.py
+);
