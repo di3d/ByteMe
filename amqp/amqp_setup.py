@@ -1,4 +1,3 @@
-# unified_amqp_setup.py
 import pika
 import os
 from os import environ
