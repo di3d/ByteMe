@@ -14,12 +14,12 @@ from config import Config
 stripe.api_key = Config.STRIPE_SECRET_KEY
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.WARNING)
 # Set PIKA logging to WARNING
 logging.getLogger("pika").setLevel(logging.WARNING)
 # Configure our logger
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.WARNING)
 
 # Add formatter for cleaner logs
 formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
