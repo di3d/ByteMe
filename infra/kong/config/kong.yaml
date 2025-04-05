@@ -5,4 +5,25 @@ services:
     routes:
       - name: ai-route
         paths: ["/ai"]
-        methods: ["POST"]  # Explicitly declare allowed methods
+        methods: ["POST", "OPTIONS"]  # Add OPTIONS for preflight
+    
+    # CORS plugin configuration
+    plugins:
+      - name: cors
+        config:
+          origins: ["http://localhost:3000"]  # Your Next.js dev server
+          methods: ["POST", "OPTIONS"]
+          headers: ["Content-Type"]
+          credentials: true
+          max_age: 3600
+
+  - name: components-service
+    url: https://personal-0careuf6.outsystemscloud.com
+    routes:
+      - name: components-route
+        paths: ["/components"]
+    plugins:
+      - name: request-transformer
+        config:
+          replace:
+            uri: "/ByteMeComponentService/rest/ComponentAPI/AllComponents"
