@@ -7,7 +7,7 @@ import logging
 
 # Configure Stripe
 stripe.api_key = Config.STRIPE_SECRET_KEY
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger(__name__)
 
 @checkout_bp.route('/create-checkout-session', methods=['POST', 'OPTIONS'])

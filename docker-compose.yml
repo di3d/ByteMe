@@ -129,6 +129,7 @@ services:
       - RABBITMQ_PORT=5672
       - RABBITMQ_USER=guest
       - RABBITMQ_PASSWORD=guest
+      - PYTHONWARNINGS=ignore
     ports:
       - "5000:5000"
     volumes:
@@ -151,14 +152,32 @@ services:
       - STRIPE_SERVICE_URL=http://stripe:5000
       - FLASK_APP=makeRefunds.py
       - PYTHONPATH=/app
+      - PYTHONWARNINGS=ignore
     volumes:
       - ./scenario3:/app
       - ./amqp:/app/amqp
     depends_on:
       - rabbitmq
       - stripe
-    restart: unless-stopped 
+    restart: unless-stopped
 
+  email_service:
+    build:
+      context: .
+      dockerfile: email_service/Dockerfile
+    env_file:
+      - ./email_service/.env
+    environment:
+      - PYTHONPATH=/app
+      - FLASK_APP=email_service.app
+      - PYTHONWARNINGS=ignore
+    ports:
+      - "5005:5005"
+    volumes:
+      - ./email_service:/app/email_service
+      - ./amqp:/app/amqp
+    depends_on:
+      - rabbitmq
 
   
   # # Make Purchase microservice

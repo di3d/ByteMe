@@ -1,17 +1,28 @@
-# Use a Python base image
 FROM python:3.9-slim
 
-# Set the working directory to the root of the project
+# Set working directory
 WORKDIR /app
 
-# Copy the entire ByteMe project into the container
-COPY . .
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    python3-dev \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install dependencies
-RUN pip install --no-cache-dir -r email_service/requirements.txt
+# Copy requirements first
+COPY email_service/requirements.txt requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Set the PYTHONPATH to the root directory
+# Copy the application code
+COPY email_service email_service/
+COPY amqp amqp/
+
+# Set environment variables
 ENV PYTHONPATH=/app
 
-# Run the email_service as a module from the root
+# For debugging
+RUN ls -la /app/email_service
+RUN python -c "import sys; print(sys.path)"
+
+# Run the application
 CMD ["python", "-m", "email_service.app"]

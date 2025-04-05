@@ -21,7 +21,7 @@ app = Flask(__name__)
 CORS(app)
 
 # Set up logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger(__name__)
 
 def safe_publish(exchange, routing_key, message):
@@ -125,7 +125,9 @@ def initiate_refund():
                 'customer_email': customer_email
             }
         }
+        logger.warning(f"📧 Publishing email notification: {json.dumps(email_message, indent=2)}")
         if not safe_publish('notification', 'notification.email', json.dumps(email_message)):
+            logger.error("❌ Failed to publish email notification")
             publish_success = False
 
         if not publish_success:
