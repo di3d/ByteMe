@@ -142,7 +142,7 @@ def create_order():
             }), 400
                 
         # Generate order_id and timestamp
-        order_id = str(uuid.uuid4())
+        order_id = data.get("order_id")
         current_time = datetime.now()
         
         conn = get_db_connection()

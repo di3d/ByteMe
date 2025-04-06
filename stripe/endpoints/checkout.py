@@ -55,7 +55,7 @@ def create_checkout_session():
             "code": 200,
             "data": {
                 "checkout_url": checkout_session.url,
-                "session_id": checkout_session.id
+                "session_id": checkout_session.id,
             }
         }), 200
 
