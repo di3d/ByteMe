@@ -19,7 +19,7 @@ import { auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 
 // Variable to store the user's UID
-let currentUserId = null;
+let currentUserId : string | null = null;
 
 // Set up the auth state observer
 const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -108,7 +108,7 @@ export default function PCBuilder() {
     try {
       // Prepare the data to send to the recommendation microservice
       const payload = {
-        customer_id: "12345", // Replace with the actual customer ID
+        customer_id: currentUserId, // Replace with the actual customer ID
         parts_list: selectedParts, // Send the selectedParts object directly
       };
 

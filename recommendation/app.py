@@ -56,30 +56,6 @@ def get_db_connection():
     conn = psycopg2.connect(**DB_PARAMS)
     return conn
 
-# def initialize_tables():
-#     """Initialize the database tables for recommendation service"""
-#     try:
-#         conn = get_db_connection()
-#         cursor = conn.cursor()
-        
-#         # Recommendation table schema
-#         cursor.execute("""
-#             CREATE TABLE IF NOT EXISTS recommendations (
-#                 recommendation_id VARCHAR PRIMARY KEY,
-#                 customer_id VARCHAR NOT NULL,
-#                 parts_list JSONB NOT NULL,
-#                 timestamp TIMESTAMP NOT NULL
-#             )
-#         """)
-        
-#         conn.commit()
-#         cursor.close()
-#         conn.close()
-#         print("Recommendation tables initialized successfully")
-#     except Exception as e:
-#         print(f"Error initializing recommendation tables: {str(e)}")
-#         raise
-
 @app.route("/recommendation/<string:recommendation_id>", methods=['GET'])
 def get_recommendation(recommendation_id):
     try:
@@ -87,7 +63,7 @@ def get_recommendation(recommendation_id):
         cursor = conn.cursor()
         
         cursor.execute("""
-            SELECT recommendation_id, customer_id, parts_list, timestamp
+            SELECT recommendation_id, customer_id, name, parts_list, timestamp
             FROM recommendations 
             WHERE recommendation_id = %s
         """, (recommendation_id,))
@@ -102,8 +78,9 @@ def get_recommendation(recommendation_id):
                 "data": {
                     "recommendation_id": recommendation_data[0],
                     "customer_id": recommendation_data[1],
-                    "parts_list": recommendation_data[2],
-                    "timestamp": recommendation_data[3].isoformat()
+                    "name": recommendation_data[2],
+                    "parts_list": recommendation_data[3],
+                    "timestamp": recommendation_data[4].isoformat()
                 }
             }), 200
         else:
@@ -124,7 +101,7 @@ def create_recommendation():
         data = request.get_json()
         
         # Validate required fields
-        required_fields = ["customer_id", "parts_list"]
+        required_fields = ["customer_id", "name", "parts_list"]
         for field in required_fields:
             if field not in data:
                 return jsonify({
@@ -132,11 +109,11 @@ def create_recommendation():
                     "message": f"Missing required field: {field}"
                 }), 400
                 
-        # Validate parts_list is a list
+        # Validate parts_list is a dictionary
         if not isinstance(data["parts_list"], dict):
             return jsonify({
                 "code": 400,
-                "message": "parts_list must be an array"
+                "message": "parts_list must be an object"
             }), 400
                 
         # Generate recommendation_id and timestamp
@@ -150,13 +127,14 @@ def create_recommendation():
         cursor.execute(
             """
             INSERT INTO recommendations (
-                recommendation_id, customer_id, parts_list, timestamp
-            ) VALUES (%s, %s, %s::jsonb, %s)
+                recommendation_id, customer_id, name, parts_list, timestamp
+            ) VALUES (%s, %s, %s, %s::jsonb, %s)
             RETURNING *
             """,
             (
                 recommendation_id,
                 data["customer_id"],
+                data["name"],
                 json.dumps(data["parts_list"]),
                 current_time
             )
@@ -173,8 +151,9 @@ def create_recommendation():
             "data": {
                 "recommendation_id": new_recommendation[0],
                 "customer_id": new_recommendation[1],
-                "parts_list": new_recommendation[2],
-                "timestamp": new_recommendation[3].isoformat()
+                "name": new_recommendation[2],
+                "parts_list": new_recommendation[3],
+                "timestamp": new_recommendation[4].isoformat()
             }
         }), 201
         
@@ -184,6 +163,51 @@ def create_recommendation():
             if 'cursor' in locals():
                 cursor.close()
             conn.close()
+        return jsonify({
+            "code": 500,
+            "message": str(e)
+        }), 500
+
+@app.route("/recommendations/<string:customer_id>", methods=['GET'])
+def get_recommendations_by_customer(customer_id):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Query to get all recommendations for the given customer_id
+        cursor.execute("""
+            SELECT recommendation_id, customer_id, name, parts_list, timestamp
+            FROM recommendations
+            WHERE customer_id = %s
+        """, (customer_id,))
+        recommendations = cursor.fetchall()
+        
+        cursor.close()
+        conn.close()
+        
+        if recommendations:
+            # Format the response data
+            recommendations_list = [
+                {
+                    "recommendation_id": rec[0],
+                    "customer_id": rec[1],
+                    "name": rec[2],
+                    "parts_list": rec[3],
+                    "timestamp": rec[4].isoformat()
+                }
+                for rec in recommendations
+            ]
+            return jsonify({
+                "code": 200,
+                "data": recommendations_list
+            }), 200
+        else:
+            return jsonify({
+                "code": 404,
+                "message": "No recommendations found for the given customer ID"
+            }), 404
+            
+    except Exception as e:
         return jsonify({
             "code": 500,
             "message": str(e)
