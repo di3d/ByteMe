@@ -5,6 +5,16 @@ import { useState, useEffect } from 'react';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+
+export function ComponentCardSkeleton() {
+  return (
+    <div className="space-y-4">
+      <Skeleton className="h-4 w-[250px]" />
+      <Skeleton className="h-10 w-full" />
+    </div>
+  );
+}
 
 interface Component {
   Id: number;
@@ -72,9 +82,17 @@ export default function PCBuilder() {
   };
 
   if (isLoading) {
-    return <div className="flex justify-center items-center h-screen">Loading...</div>;
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <Skeleton className="h-10 w-[200px] mb-8" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[...Array(6)].map((_, i) => (
+            <ComponentCardSkeleton key={i} />
+          ))}
+        </div>
+      </div>
+    );
   }
-
   if (error) {
     return <div className="flex justify-center items-center h-screen text-red-500">{error}</div>;
   }
@@ -138,6 +156,41 @@ export default function PCBuilder() {
           );
         })}
       </div>
+
+      <div className="grid grid-cols-1 gap-3 my-6">
+        <div className="font-bold">Your Selection</div>
+  {Object.entries(selectedParts)
+    .filter(([_, component]) => component !== null)
+    .map(([categoryId, component]) => (
+      <div key={categoryId} className="flex items-center gap-4 p-3 border rounded-lg">
+        <div className="w-16 h-16 bg-gray-100 flex items-center justify-center rounded-md">
+          <img
+            src={component?.ImageUrl}
+            alt={component?.Name}
+            className="max-w-full max-h-full object-contain p-1"
+          />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h3 className="font-medium truncate">{component?.Name}</h3>
+          <p className="text-sm text-muted-foreground">
+            {categories.find(cat => cat.id === parseInt(categoryId))?.name}
+          </p>
+        </div>
+        <div className="text-right">
+          <p className="font-semibold">${component?.Price.toFixed(2)}</p>
+          <button 
+            className="text-sm text-red-500 hover:text-red-700"
+            onClick={() => setSelectedParts(prev => ({
+              ...prev,
+              [categoryId]: null
+            }))}
+          >
+            Remove
+          </button>
+        </div>
+      </div>
+    ))}
+</div>
 
       <div className="mt-8 p-6 bg-gray-800 rounded-lg">
         <div className="flex justify-between items-center">
