@@ -18,7 +18,7 @@ import amqp_setup as amqp_setup
 load_dotenv()
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger(__name__)
 
 # Verify environment variables are loaded
@@ -164,11 +164,11 @@ def test_email():
 def callback(channel, method, properties, body):
     """Process email notifications"""
     try:
-        logger.info("=================== New Message Received ===================")
-        logger.info(f"Received message: {body}")
+        logger.warning("=================== New Message Received ===================")
+        logger.warning(f"Received message: {body}")
         
         event = json.loads(body)  # Parse the message
-        logger.info(f"Processing notification event type: {event['type']}")
+        logger.warning(f"Processing notification event type: {event['type']}")
         
         if event['type'] in ['notification.email.refund_initiated', 'notification.email.refund']:
             customer_email = event['data'].get('customer_email')
@@ -237,7 +237,7 @@ if __name__ == '__main__':
     print("Starting Email Notification Service...")
     # Start Flask app in one thread
     import threading
-    threading.Thread(target=lambda: app.run(port=PORT, debug=False)).start()
+    threading.Thread(target=lambda: app.run(host='0.0.0.0', port=PORT, debug=False)).start()
     
     # Start the email worker in main thread
     start_email_worker()

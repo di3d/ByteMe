@@ -12,7 +12,7 @@ import os
 stripe.api_key = Config.STRIPE_SECRET_KEY
 
 # Setup logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger(__name__)
 
 @refund_bp.route('/refund-async', methods=['POST'])

@@ -3,76 +3,67 @@ import stripe
 import json
 from config import Config
 from endpoints.blueprint_registry import checkout_bp
+import logging
 
 # Configure Stripe
 stripe.api_key = Config.STRIPE_SECRET_KEY
+logging.basicConfig(level=logging.WARNING)
+logger = logging.getLogger(__name__)
 
 @checkout_bp.route('/create-checkout-session', methods=['POST', 'OPTIONS'])
 def create_checkout_session():
     if request.method == 'OPTIONS':
-        # Handle preflight request
         return jsonify({"message": "CORS preflight passed"}), 200
 
-    """
-    Create a new Stripe Checkout Session.
-    
-    Request body parameters:
-    - amount: (required) Amount in cents
-    - currency: (optional) 3-letter currency code, default 'usd'
-    - metadata: (optional) Additional metadata (e.g., user_id)
-    - success_url: (optional) URL to redirect on success
-    - cancel_url: (optional) URL to redirect on cancel
-    - customer_email: (optional) Pre-fill customer email
-    
-    Returns:
-    - url: Checkout session URL
-    """
-    data = json.loads(request.data)
     try:
+        data = request.get_json()
+        logger.info(f"Received request data: {data}")
+
         # Validate minimum required fields
         if not data.get('amount'):
+            logger.error("Missing amount in request")
             return jsonify({"error": "Amount is required"}), 400
             
-        # Always require customer email for logged in users
         if not data.get('customer_email'):
+            logger.error("Missing customer_email in request")
             return jsonify({"error": "Customer email is required"}), 400
-
-        # Create a generic line item
-        line_items = [{
-            'price_data': {
-                'currency': data.get('currency', 'usd'),
-                'product_data': {
-                    'name': data.get('product_name', 'Payment'),
+        
+        logger.info("Creating Stripe checkout session...")
+        checkout_session = stripe.checkout.Session.create(
+            payment_method_types=['card'],
+            line_items=[{
+                'price_data': {
+                    'currency': data.get('currency', 'usd'),
+                    'unit_amount': data.get('amount'),
+                    'product_data': {
+                        'name': 'Payment',
+                    },
                 },
-                'unit_amount': data.get('amount'),
-            },
-            'quantity': 1,
-        }]
+                'quantity': 1,
+            }],
+            mode='payment',
+            success_url=Config.DEFAULT_SUCCESS_URL,
+            cancel_url=Config.DEFAULT_CANCEL_URL,
+            customer_email=data.get('customer_email')
+        )
         
-        # Add payment_method_options for 3D Secure
-        session_params = {
-            'payment_method_types': ['card'],
-            'payment_method_options': {
-                'card': {
-                    'request_three_d_secure': 'any'  # Request 3DS when available
-                }
-            },
-            'line_items': line_items,
-            'mode': 'payment',
-            'success_url': data.get('success_url', Config.DEFAULT_SUCCESS_URL),
-            'cancel_url': data.get('cancel_url', Config.DEFAULT_CANCEL_URL),
-            'customer_email': data.get('customer_email'),  # Use authenticated email
-        }
-        
-        # Add optional parameters if provided
-        if data.get('metadata'):
-            session_params['metadata'] = data.get('metadata')
-        
-        # Create the Checkout Session
-        checkout_session = stripe.checkout.Session.create(**session_params)
-        
-        return jsonify({'url': checkout_session.url})
+        logger.info(f"Checkout session created successfully: {checkout_session.id}")
+
+        # Return response in the format frontend expects
+        return jsonify({
+            "url": checkout_session.url,  # This is what frontend expects
+            "code": 200,
+            "data": {
+                "checkout_url": checkout_session.url,
+                "session_id": checkout_session.id
+            }
+        }), 200
+
+    except stripe.error.StripeError as e:
+        logger.error(f"Stripe error: {str(e)}")
+        return jsonify({"error": str(e)}), 400
     except Exception as e:
+        logger.error(f"Unexpected error: {str(e)}")
         return jsonify({"error": str(e)}), 400
 
 # Add endpoint to handle 3D Secure authentication completion
