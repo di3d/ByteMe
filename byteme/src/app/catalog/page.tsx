@@ -12,8 +12,9 @@ const categories = [
   { id: 3, name: "Motherboards" },
   { id: 4, name: "Memory" },
   { id: 5, name: "Storage" },
-  { id: 6, name: "Power Supplies" },
-  { id: 7, name: "Cooling" },
+  { id: 6, name: "Chassis" },
+  { id: 7, name: "Power Supplies" },
+  { id: 8, name: "Cooling" },
 ]
 
 interface Part {
@@ -73,7 +74,7 @@ export default function PCPartsBrowser() {
         onValueChange={(val) => setSelectedCategory(Number(val))}
         className="w-full"
       >
-        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 h-auto">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 h-auto">
           {categories.map((category) => (
             <TabsTrigger 
               key={category.id} 

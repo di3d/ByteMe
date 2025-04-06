@@ -1,119 +1,157 @@
+// app/pc-builder/page.tsx
 "use client";
 
-import { useState } from "react";
-import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
-import { Separator } from "@/components/ui/separator";
-import { Rocket, Info, Search } from "lucide-react";
-import Chat from "@/components/chat";
+import { useState, useEffect } from 'react';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 
-export default function Build() {
-  const [budget, setBudget] = useState(1500); // Default budget
+interface Component {
+  Id: number;
+  Name: string;
+  Price: number;
+  Stock: number;
+  ImageUrl: string;
+  CreatedAt: string;
+  CategoryId: number;
+}
+
+interface Category {
+  id: number;
+  name: string;
+}
+
+const categories: Category[] = [
+  { id: 1, name: 'CPU' },
+  { id: 2, name: 'GPU' },
+  { id: 3, name: 'Motherboard' },
+  { id: 4, name: 'RAM' },
+  { id: 5, name: 'Storage' },
+  { id: 6, name: 'Case' },
+  { id: 7, name: 'Power Supply' },
+  { id: 8, name: 'Cooling' },
+];
+
+export default function PCBuilder() {
+  const [components, setComponents] = useState<Component[]>([]);
+  const [selectedParts, setSelectedParts] = useState<Record<number, Component | null>>({});
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchComponents = async () => {
+      try {
+        const response = await fetch('http://localhost:8000/components');
+        if (!response.ok) {
+          throw new Error('Failed to fetch components');
+        }
+        const data = await response.json();
+        setComponents(data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An unknown error occurred');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchComponents();
+  }, []);
+
+  const handlePartSelect = (categoryId: number, componentId: string) => {
+    const selectedComponent = components.find(comp => comp.Id === parseInt(componentId));
+    setSelectedParts(prev => ({
+      ...prev,
+      [categoryId]: selectedComponent || null
+    }));
+  };
+
+  const handleSave = () => {
+    console.log('Selected parts:', selectedParts);
+    // Here you would typically send the selected parts to your backend
+    alert('PC configuration saved!');
+  };
+
+  if (isLoading) {
+    return <div className="flex justify-center items-center h-screen">Loading...</div>;
+  }
+
+  if (error) {
+    return <div className="flex justify-center items-center h-screen text-red-500">{error}</div>;
+  }
+
+  const getComponentsByCategory = (categoryId: number) => {
+    return components.filter(comp => comp.CategoryId === categoryId);
+  };
+
+  const calculateTotalPrice = () => {
+    return Object.values(selectedParts).reduce(
+      (total, component) => total + (component?.Price || 0),
+      0
+    );
+  };
 
   return (
-    <div className="max-w-4xl mx-auto p-6 space-y-6">
-      {/* Breadcrumb Navigation */}
-      <BreadcrumbList>
-        <BreadcrumbItem>
-          <BreadcrumbLink href="/">Home</BreadcrumbLink>
-        </BreadcrumbItem>
-        <BreadcrumbSeparator />
-        <BreadcrumbItem>
-          <BreadcrumbPage>Build Your PC</BreadcrumbPage>
-        </BreadcrumbItem>
-      </BreadcrumbList>
+    <div className="container mx-auto px-4 py-8">
+      <h1 className="text-3xl font-bold mb-8">PC Builder</h1>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {categories.map(category => {
+          const categoryComponents = getComponentsByCategory(category.id);
+          if (categoryComponents.length === 0) return null;
 
-      <Separator className="my-4" />
+          return (
+            <Card key={category.id} className="h-full">
+              <CardHeader>
+                <CardTitle>{category.name}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Select
+                  onValueChange={(value) => handlePartSelect(category.id, value)}
+                  value={selectedParts[category.id]?.Id.toString() || ''}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder={`Select ${category.name}`} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categoryComponents.map(component => (
+                      <SelectItem
+                        key={component.Id}
+                        value={component.Id.toString()}
+                        disabled={component.Stock <= 0}
+                      >
+                        {component.Name} - ${component.Price.toFixed(2)}
+                        {component.Stock <= 0 && ' (Out of stock)'}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                
+                {selectedParts[category.id] && (
+                  <div className="mt-4 p-3 bg-gray-800 rounded-lg">
+                    <p className="font-medium">Selected: {selectedParts[category.id]?.Name}</p>
+                    <p>Price: ${selectedParts[category.id]?.Price.toFixed(2)}</p>
+                    <p>Stock: {selectedParts[category.id]?.Stock}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
 
-      {/* 🔥 Hero Section */}
-      <Card className="bg-gradient-to-r from-blue-600 to-blue-400 text-white shadow-lg">
-        <CardHeader className="flex flex-col sm:flex-row items-center gap-4">
-          <Rocket className="w-12 h-12" />
+      <div className="mt-8 p-6 bg-gray-800 rounded-lg">
+        <div className="flex justify-between items-center">
           <div>
-            <CardTitle>Find the Perfect Parts for Your PC!</CardTitle>
-            <CardDescription className="text-white/80">
-              Get AI-powered recommendations tailored to your budget and needs.
-            </CardDescription>
+            <h2 className="text-xl font-bold">Total Price: ${calculateTotalPrice().toFixed(2)}</h2>
+            <p className="text-sm text-gray-600">
+              {Object.values(selectedParts).filter(Boolean).length} components selected
+            </p>
           </div>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <h2 className="font-medium text-lg">Find parts by PC</h2>
-            <div className="relative">
-              <Input type="text" placeholder="Enter your PC model..." />
-              <Search className="absolute right-3 top-2.5 text-gray-400" />
-            </div>
-          </div>
-          <div>
-            <h2 className="font-medium text-lg">Find specific parts</h2>
-            <div className="relative">
-              <Input type="text" placeholder="Enter part name..." />
-              <Search className="absolute right-3 top-2.5 text-gray-400" />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* 🛠️ New to PC Building? */}
-      <Card className="bg-gradient-to-r from-pink-700 to-pink-500 text-white shadow-lg">
-        <CardContent className="flex flex-col sm:flex-row justify-between items-center p-6">
-          <div className="flex items-center gap-3">
-            <Info className="w-10 h-10" />
-            <span className="text-lg font-medium">
-              New to PC building? Let us guide you step by step!
-            </span>
-          </div>
-          <Button className="bg-green-600 hover:bg-green-500 mt-4 sm:mt-0">Get Help</Button>
-        </CardContent>
-      </Card>
-
-      {/* 📋 Requirements Section */}
-      <Card className="bg-gradient-to-r from-purple-700 to-purple-500 text-white shadow-lg">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <span>Requirements</span>
-          </CardTitle>
-          <CardDescription className="text-white/80">
-            Customize your build with specific preferences.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form className="space-y-6">
-            {/* 🎚️ Budget Slider */}
-            <div>
-              <label htmlFor="budget_slider" className="block text-lg font-medium">
-                Budget: <span className="text-yellow-300">${budget}</span>
-              </label>
-              <Slider
-                id="budget_slider"
-                min={0}
-                max={10000}
-                step={50}
-                defaultValue={[budget]}
-                onValueChange={(value) => setBudget(value[0])}
-              />
-            </div>
-
-            {/* 🔍 AI Prompt */}
-            <div>
-              <label htmlFor="ai_prompt" className="block text-lg font-medium">
-                Describe Your Needs
-              </label>
-              <Input id="ai_prompt" type="text" placeholder="Ex: I need a gaming PC under $2000" required />
-            </div>
-
-            {/* 🚀 Submit Button */}
-            <Button type="submit" className="w-full bg-green-600 hover:bg-green-500">
-              Find My PC Parts
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-
-      <Chat/>
+          <Button onClick={handleSave} className="px-8 py-4 text-lg">
+            Save Configuration
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

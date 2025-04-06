@@ -5,14 +5,59 @@ meta {
 }
 
 post {
-  url: http://localhost:11434/api/generate
+  url: http://localhost:8000/ai/api/generate
   body: json
   auth: inherit
 }
 
 body:json {
   {
-      "model": "deepseek-r1",
-      "prompt": "Suggest a gaming PC build under $1000"
+    "model": "deepseek-r1",
+    "prompt": "Suggest a gaming PC build under $1000. Format your output in structured JSON ONLY with the following keys, CPU, Motherboard, GPU, RAM, SSD, CHASSIS, PSU",
+    "stream": false,
+    "format": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "PC Build Schema",
+      "type": "object",
+      "properties": {
+        "CPU": {
+          "type": "string",
+          "description": "Central Processing Unit (e.g., AMD Ryzen 5 7600X)"
+        },
+        "MOBO": {
+          "type": "string",
+          "description": "Motherboard (e.g., ASUS ROG STRIX B650-E)"
+        },
+        "GPU": {
+          "type": "string",
+          "description": "Graphics Processing Unit (e.g., NVIDIA GeForce RTX 4070)"
+        },
+        "RAM": {
+          "type": "string",
+          "description": "Memory (e.g., 32GB DDR5 6000MHz)"
+        },
+        "SSD": {
+          "type": "string",
+          "description": "Solid State Drive (e.g., Samsung 980 Pro 1TB NVMe)"
+        },
+        "CASING": {
+          "type": "string",
+          "description": "PC Case (e.g., NZXT H510)"
+        },
+        "PSU": {
+          "type": "string",
+          "description": "Power Supply Unit (e.g., Corsair RM750x 750W 80+ Gold)"
+        }
+      },
+      "required": [
+        "CPU",
+        "MOBO",
+        "GPU",
+        "RAM",
+        "SSD",
+        "CASING",
+        "PSU"
+      ]
+    }
   }
 }

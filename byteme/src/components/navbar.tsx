@@ -44,7 +44,7 @@ const navLinks = [
   {
     title: "About Us",
     href: "/about",
-    submenu: [{ title: "Contact", href: "/contact" }],
+    submenu: [{ title: "The Team", href: "/about" }],
   },
 ];
 

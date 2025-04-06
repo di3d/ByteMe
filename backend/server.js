@@ -27,6 +27,7 @@ app.post("/chat", async (req, res) => {
       model: "deepseek-r1:14b",
       prompt: `Available components:\n${componentList}\n\nRecommend PC parts based on: ${message} \n Do not deviate outside of the components given to you. \n Your component list should have the following components, in this order : CPU, Motherboard, GPU, RAM, SSD, CASING, PSU, COOLER \n Where there are no suitable parts, simply put no recommendations`,
       stream: false,
+      
     });
 
     // Extract response and remove <think> tags
