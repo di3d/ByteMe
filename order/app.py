@@ -56,6 +56,31 @@ def get_db_connection():
     conn = psycopg2.connect(**DB_PARAMS)
     return conn
 
+def initialize_tables():
+    """Initialize the database tables for order service"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Simplified order table schema doesn't exist
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS orders (
+                order_id VARCHAR PRIMARY KEY,
+                customer_id VARCHAR NOT NULL,
+                parts_list JSONB NOT NULL,
+                status VARCHAR(20) NOT NULL DEFAULT 'pending',
+                timestamp TIMESTAMP NOT NULL
+            )
+        """)
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        print("Order tables initialized successfully")
+    except Exception as e:
+        print(f"Error initializing order tables: {str(e)}")
+        raise
+
 @app.route("/order/<string:order_id>", methods=['GET'])
 def get_order(order_id):
     try:
@@ -209,6 +234,7 @@ def get_all_orders():
             "code": 500,
             "message": str(e)
         }), 500
+
 
 if __name__ == '__main__':
     # Only ensure the database exists, no table initialization

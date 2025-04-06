@@ -55,7 +55,6 @@ def setup_all_queues():
                 exchange_type=exchange_type,
                 durable=True
             )
-            logger.info(f"Declared exchange: {exchange_name}")
         except Exception as e:
             logger.error(f"Failed to declare exchange {exchange_name}: {str(e)}")
 

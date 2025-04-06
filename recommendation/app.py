@@ -12,7 +12,7 @@ CORS(app)
 
 # Database connection parameters
 DB_PARAMS = {
-    "dbname": os.getenv("DB_NAME", "customer_db"),
+    "dbname": os.getenv("DB_NAME", "recommendation_db"),
     "user": os.getenv("DB_USER", "esduser"),
     "password": os.getenv("DB_PASSWORD", "esduser"),
     "host": os.getenv("DB_HOST", "localhost"),  # Special DNS name to access host

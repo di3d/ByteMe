@@ -28,7 +28,7 @@ export default function RefundPage() {
 
     try {
       // Use environment variable or fallback to localhost
-      const apiUrl = process.env.NEXT_PUBLIC_SCENARIO3_API_URL || 'http://127.0.0.1:5003';
+      const apiUrl = process.env.NEXT_PUBLIC_SCENARIO3_API_URL || 'http://127.0.0.1:5006';
       
       const refundResponse = await fetch(`${apiUrl}/initiate-refund`, {
         method: 'POST',

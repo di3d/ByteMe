@@ -16,7 +16,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '/')))
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../')))
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
@@ -64,4 +64,4 @@ def health_check():
 
 if __name__ == "__main__":
     logger.info("Stripe service started (RabbitMQ disabled)")
-    app.run(port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True)

@@ -1,5 +1,4 @@
-
-from flask import request
+import requests  # ✅ import the correct library, not Flask
 
 SUPPORTED_HTTP_METHODS = set([
     "GET", "OPTIONS", "HEAD", "POST", "PUT", "PATCH", "DELETE"
@@ -11,14 +10,18 @@ def invoke_http(url, method='GET', json=None, **kwargs):
     method: the http method;
     data: the JSON input when needed by the http method;
     return: the JSON reply content from the http service if the call succeeds;
-            otherwise, return a JSON object with a "code" name-value pair.
+        otherwise, return a JSON object with a "code" name-value pair.
     """
     code = 200
     result = {}
+    
+    print(f"Invoking {method} request to {url}")
+    if json:
+        print(f"Payload: {json}")
 
     try:
         if method.upper() in SUPPORTED_HTTP_METHODS:
-            r = request.request(method, url, json = json, **kwargs)
+            r = requests.request(method, url, json=json, **kwargs)
         else:
             raise Exception("HTTP method {} unsupported.".format(method))
     except Exception as e:
