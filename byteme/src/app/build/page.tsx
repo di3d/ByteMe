@@ -75,10 +75,36 @@ export default function PCBuilder() {
     }));
   };
 
-  const handleSave = () => {
-    console.log('Selected parts:', selectedParts);
-    // Here you would typically send the selected parts to your backend
-    alert('PC configuration saved!');
+  const handleSave = async () => {
+    try {
+      // Prepare the data to send to the recommendation microservice
+      const payload = {
+        customer_id: "12345", // Replace with the actual customer ID
+        parts_list: selectedParts, // Send the selectedParts object directly
+      };
+
+      // Make the POST request to the recommendation microservice
+      const response = await fetch("http://localhost:5004/recommendation", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to save recommendation");
+      }
+
+      const data = await response.json();
+      console.log("Recommendation saved successfully:", data);
+
+      alert("PC configuration saved!");
+    } catch (error) {
+      console.error("Error saving recommendation:", error);
+      alert("Failed to save PC configuration. Please try again.");
+    }
   };
 
   if (isLoading) {

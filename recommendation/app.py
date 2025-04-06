@@ -133,7 +133,7 @@ def create_recommendation():
                 }), 400
                 
         # Validate parts_list is a list
-        if not isinstance(data["parts_list"], list):
+        if not isinstance(data["parts_list"], dict):
             return jsonify({
                 "code": 400,
                 "message": "parts_list must be an array"

@@ -50,28 +50,6 @@ def get_db_connection():
     conn = psycopg2.connect(**DB_PARAMS)
     return conn
 
-# def initialize_tables():
-#     """Initialize the database tables"""
-#     try:
-#         conn = get_db_connection()
-#         cursor = conn.cursor()
-        
-#         cursor.execute("""
-#             CREATE TABLE IF NOT EXISTS customers (
-#                 id VARCHAR PRIMARY KEY,
-#                 name VARCHAR NOT NULL,
-#                 address VARCHAR NOT NULL,
-#                 email VARCHAR NOT NULL
-#             )
-#         """)
-#         conn.commit()
-#         cursor.close()
-#         conn.close()
-#         print("Customer tables initialized successfully")
-#     except Exception as e:
-#         print(f"Error initializing tables: {str(e)}")
-#         raise
-
 @app.route("/customer/<string:customer_id>", methods=['GET'])
 def get_customer(customer_id):
     try:
