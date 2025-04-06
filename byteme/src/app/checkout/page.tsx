@@ -7,6 +7,51 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from '@/lib/auth-context'; // Add useAuth hook at top
 
+// Store and save the user's UID
+import { auth } from "@/lib/firebase";
+import { onAuthStateChanged } from "firebase/auth";
+
+// Variable to store the user's UID
+let currentUserId : string | null = null;
+
+// Set up the auth state observer
+const unsubscribe = onAuthStateChanged(auth, (user) => {
+  if (user) {
+    currentUserId = user.uid; // Store the UID in the variable
+  } else {
+    currentUserId = null; // Clear the variable if user signs out
+  }
+});
+
+const fetchUserRecommendations = async () => {
+  if (!currentUserId) {
+    console.error("User is not authenticated.");
+    return;
+  }
+
+  try {
+    const apiUrl = process.env.NEXT_PUBLIC_RECOMMENDATIONS_API_URL || 'http://127.0.0.1:5004';
+    const response = await fetch(`${apiUrl}/recommendation/customer/${currentUserId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("Error fetching recommendations:", errorData.message);
+      return;
+    }
+
+    const data = await response.json();
+    console.log("User recommendations:", data.data);
+    return data.data; // Return the recommendations list
+  } catch (error) {
+    console.error("Failed to fetch recommendations:", error);
+  }
+};
+
 export default function Checkout() {
   const { user } = useAuth(); // Add useAuth hook at top
   const [selectedBuildId, setSelectedBuildId] = useState(samplePCBuilds[0].id);
@@ -27,6 +72,11 @@ export default function Checkout() {
       hasCreatedSession.current = false;
     }
   }, [selectedBuildId]);
+
+  // Example usage of fetchUserRecommendations
+  useEffect(() => {
+    fetchUserRecommendations();
+  }, []);
 
   // Format amount for display
   const formatAmount = (amount: number) => {

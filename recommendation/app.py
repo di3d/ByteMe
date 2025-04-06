@@ -63,7 +63,7 @@ def get_recommendation(recommendation_id):
         cursor = conn.cursor()
         
         cursor.execute("""
-            SELECT recommendation_id, customer_id, name, parts_list, timestamp
+            SELECT recommendation_id, customer_id, name, parts_list, cost, timestamp
             FROM recommendations 
             WHERE recommendation_id = %s
         """, (recommendation_id,))
@@ -80,7 +80,8 @@ def get_recommendation(recommendation_id):
                     "customer_id": recommendation_data[1],
                     "name": recommendation_data[2],
                     "parts_list": recommendation_data[3],
-                    "timestamp": recommendation_data[4].isoformat()
+                    "cost": float(recommendation_data[4]),
+                    "timestamp": recommendation_data[5].isoformat()
                 }
             }), 200
         else:
@@ -101,7 +102,7 @@ def create_recommendation():
         data = request.get_json()
         
         # Validate required fields
-        required_fields = ["customer_id", "name", "parts_list"]
+        required_fields = ["customer_id", "name", "parts_list", "cost"]
         for field in required_fields:
             if field not in data:
                 return jsonify({
@@ -115,6 +116,13 @@ def create_recommendation():
                 "code": 400,
                 "message": "parts_list must be an object"
             }), 400
+
+        # Validate cost is a positive number
+        if not isinstance(data["cost"], (int, float)) or data["cost"] < 0:
+            return jsonify({
+                "code": 400,
+                "message": "cost must be a positive number"
+            }), 400
                 
         # Generate recommendation_id and timestamp
         recommendation_id = str(uuid.uuid4())
@@ -127,8 +135,8 @@ def create_recommendation():
         cursor.execute(
             """
             INSERT INTO recommendations (
-                recommendation_id, customer_id, name, parts_list, timestamp
-            ) VALUES (%s, %s, %s, %s::jsonb, %s)
+                recommendation_id, customer_id, name, parts_list, cost, timestamp
+            ) VALUES (%s, %s, %s, %s::jsonb, %s, %s)
             RETURNING *
             """,
             (
@@ -136,11 +144,21 @@ def create_recommendation():
                 data["customer_id"],
                 data["name"],
                 json.dumps(data["parts_list"]),
+                data["cost"],
                 current_time
             )
         )
         
         new_recommendation = cursor.fetchone()
+        
+        if not new_recommendation:
+            return jsonify({
+                "code": 500,
+                "message": "Failed to retrieve the inserted recommendation"
+            }), 500
+        
+        print("New Recommendation:", new_recommendation)
+        
         conn.commit()
         cursor.close()
         conn.close()
@@ -152,8 +170,9 @@ def create_recommendation():
                 "recommendation_id": new_recommendation[0],
                 "customer_id": new_recommendation[1],
                 "name": new_recommendation[2],
-                "parts_list": new_recommendation[3],
-                "timestamp": new_recommendation[4].isoformat()
+                "cost": float(new_recommendation[3]),
+                "parts_list": new_recommendation[4],
+                "timestamp": new_recommendation[5].isoformat()
             }
         }), 201
         
@@ -168,7 +187,7 @@ def create_recommendation():
             "message": str(e)
         }), 500
 
-@app.route("/recommendations/<string:customer_id>", methods=['GET'])
+@app.route("/recommendation/customer/<string:customer_id>", methods=['GET'])
 def get_recommendations_by_customer(customer_id):
     try:
         conn = get_db_connection()
@@ -176,7 +195,7 @@ def get_recommendations_by_customer(customer_id):
         
         # Query to get all recommendations for the given customer_id
         cursor.execute("""
-            SELECT recommendation_id, customer_id, name, parts_list, timestamp
+            SELECT recommendation_id, customer_id, name, parts_list, cost, timestamp
             FROM recommendations
             WHERE customer_id = %s
         """, (customer_id,))
@@ -193,7 +212,8 @@ def get_recommendations_by_customer(customer_id):
                     "customer_id": rec[1],
                     "name": rec[2],
                     "parts_list": rec[3],
-                    "timestamp": rec[4].isoformat()
+                    "cost": float(rec[4]),
+                    "timestamp": rec[5].isoformat()
                 }
                 for rec in recommendations
             ]

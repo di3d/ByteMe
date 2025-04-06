@@ -117,11 +117,15 @@ export default function PCBuilder() {
         return;
       }
 
+      // Calculate the total cost of the selected parts
+      const totalCost = calculateTotalPrice();
+
       // Prepare the data to send to the recommendation microservice
       const payload = {
         customer_id: currentUserId, // Replace with the actual customer ID
         name: recommendationName, // Include the recommendation name
         parts_list: selectedParts, // Send the selectedParts object directly
+        cost: totalCost, // Include the total cost in the payload
       };
 
       // Make the POST request to the recommendation microservice
@@ -143,7 +147,7 @@ export default function PCBuilder() {
 
       alert("PC configuration saved!");
     } catch (error) {
-      console.error("Error saving recommend ation:", error);
+      console.error("Error saving recommendation:", error);
       alert("Failed to save PC configuration. Please try again.");
     }
   };

@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS recommendations (
     recommendation_id VARCHAR(255) PRIMARY KEY, -- Matches the "recommendation_id" field in app.py
     customer_id VARCHAR(255) NOT NULL,         -- Matches the "customer_id" field in app.py
     name VARCHAR(255) NOT NULL,             -- Matches the "name" field in app.py
+    cost DECIMAL(10, 2) NOT NULL,         -- Matches the "cost" field in app.py
     parts_list JSONB NOT NULL,                 -- Matches the "parts_list" field in app.py
     timestamp TIMESTAMP NOT NULL               -- Matches the "timestamp" field in app.py
 );
