@@ -106,9 +106,21 @@ export default function PCBuilder() {
 
   const handleSave = async () => {
     try {
+      // Get the recommendation name from the input field
+      const recommendationName = (
+        document.getElementById("recommendation_name") as HTMLInputElement
+      ).value;
+
+      // Validate that the recommendation name is not empty
+      if (!recommendationName.trim()) {
+        alert("Please provide a name for your configuration.");
+        return;
+      }
+
       // Prepare the data to send to the recommendation microservice
       const payload = {
         customer_id: currentUserId, // Replace with the actual customer ID
+        name: recommendationName, // Include the recommendation name
         parts_list: selectedParts, // Send the selectedParts object directly
       };
 
@@ -131,7 +143,7 @@ export default function PCBuilder() {
 
       alert("PC configuration saved!");
     } catch (error) {
-      console.error("Error saving recommendation:", error);
+      console.error("Error saving recommend ation:", error);
       alert("Failed to save PC configuration. Please try again.");
     }
   };
@@ -277,7 +289,7 @@ export default function PCBuilder() {
             </p>
           </div>
           <div className="flex space-x-2">
-            <Input type="text" placeholder="My Configuration" />
+            <Input type="text" placeholder="My Configuration" id = "recommendation_name"/>
             <Button onClick={handleSave} className="px-8 py-4 text-lg">
               Save Configuration
             </Button>
