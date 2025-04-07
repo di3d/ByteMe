@@ -47,146 +47,146 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
-  # Customer microservice
-  customer:
-    container_name: customer
-    build:
-      context: ./customer
-      dockerfile: Dockerfile
-    ports:
-      - "5001:5001"
-    environment:
-      - FLASK_APP=app.py
-      - DB_HOST=postgres.yanservers.com # Update to the external PostgreSQL server hostname
-      - DB_PORT=5432       # Update to the external PostgreSQL server port
-      - DB_NAME=customer_db
-      - DB_USER=esduser
-      - DB_PASSWORD=esduser
-    # depends_on:
-    #   postgres:
-    #     condition: service_healthy
+  # # Customer microservice
+  # customer:
+  #   container_name: customer
+  #   build:
+  #     context: ./customer
+  #     dockerfile: Dockerfile
+  #   ports:
+  #     - "5001:5001"
+  #   environment:
+  #     - FLASK_APP=app.py
+  #     - DB_HOST=postgres.yanservers.com # Update to the external PostgreSQL server hostname
+  #     - DB_PORT=5432       # Update to the external PostgreSQL server port
+  #     - DB_NAME=customer_db
+  #     - DB_USER=esduser
+  #     - DB_PASSWORD=esduser
+  #   # depends_on:
+  #   #   postgres:
+  #   #     condition: service_healthy
 
-  # Order microservice
-  order:
-    container_name: order
-    build:
-      context: ./order
-      dockerfile: Dockerfile
-    ports:
-      - "5002:5002"
-    environment:
-      - FLASK_APP=app.py
-      - DB_HOST=postgres.yanservers.com # Update to the external PostgreSQL server hostname
-      - DB_PORT=5432       # Update to the external PostgreSQL server port
-      - DB_NAME=order_db
-      - DB_USER=esduser
-      - DB_PASSWORD=esduser
-    volumes:
-      - ./order:/app
-    # depends_on:
-    #   postgres:
-    #     condition: service_healthy
+  # # Order microservice
+  # order:
+  #   container_name: order
+  #   build:
+  #     context: ./order
+  #     dockerfile: Dockerfile
+  #   ports:
+  #     - "5002:5002"
+  #   environment:
+  #     - FLASK_APP=app.py
+  #     - DB_HOST=postgres.yanservers.com # Update to the external PostgreSQL server hostname
+  #     - DB_PORT=5432       # Update to the external PostgreSQL server port
+  #     - DB_NAME=order_db
+  #     - DB_USER=esduser
+  #     - DB_PASSWORD=esduser
+  #   volumes:
+  #     - ./order:/app
+  #   # depends_on:
+  #   #   postgres:
+  #   #     condition: service_healthy
 
-  # Delivery microservice
-  delivery:
-    container_name: delivery
-    build:
-      context: ./delivery
-      dockerfile: Dockerfile
-    ports:
-      - "5003:5003"
-    environment:
-      - FLASK_APP=app.py
-      - DB_HOST=postgres.yanservers.com # Update to the external PostgreSQL server hostname
-      - DB_PORT=5432       # Update to the external PostgreSQL server port
-      - DB_NAME=delivery_db
-      - DB_USER=esduser
-      - DB_PASSWORD=esduser
-    # depends_on:
-    #   postgres:
-    #     condition: service_healthy
+  # # Delivery microservice
+  # delivery:
+  #   container_name: delivery
+  #   build:
+  #     context: ./delivery
+  #     dockerfile: Dockerfile
+  #   ports:
+  #     - "5003:5003"
+  #   environment:
+  #     - FLASK_APP=app.py
+  #     - DB_HOST=postgres.yanservers.com # Update to the external PostgreSQL server hostname
+  #     - DB_PORT=5432       # Update to the external PostgreSQL server port
+  #     - DB_NAME=delivery_db
+  #     - DB_USER=esduser
+  #     - DB_PASSWORD=esduser
+  #   # depends_on:
+  #   #   postgres:
+  #   #     condition: service_healthy
 
-  # Recommendation microservice
-  recommendation:
-    container_name: recommendation
-    build:
-      context: ./recommendation
-      dockerfile: Dockerfile
-    ports:
-      - "5004:5004"
-    environment:
-      - FLASK_APP=app.py
-      - DB_HOST=postgres.yanservers.com # Update to the external PostgreSQL server hostname
-      - DB_PORT=5432       # Update to the external PostgreSQL server port
-      - DB_NAME=recommendation_db
-      - DB_USER=esduser
-      - DB_PASSWORD=esduser
-    # depends_on:
-    #   postgres:
-    #     condition: service_healthy
+  # # Recommendation microservice
+  # recommendation:
+  #   container_name: recommendation
+  #   build:
+  #     context: ./recommendation
+  #     dockerfile: Dockerfile
+  #   ports:
+  #     - "5004:5004"
+  #   environment:
+  #     - FLASK_APP=app.py
+  #     - DB_HOST=postgres.yanservers.com # Update to the external PostgreSQL server hostname
+  #     - DB_PORT=5432       # Update to the external PostgreSQL server port
+  #     - DB_NAME=recommendation_db
+  #     - DB_USER=esduser
+  #     - DB_PASSWORD=esduser
+  #   # depends_on:
+  #   #   postgres:
+  #   #     condition: service_healthy
 
-  stripe:
-    build:
-      context: ./stripe
-    env_file:
-      - ./stripe/.env
-    environment:
-      - RABBITMQ_HOST=rabbitmq  
-      - RABBITMQ_PORT=5672
-      - RABBITMQ_USER=guest
-      - RABBITMQ_PASSWORD=guest
-      - PYTHONWARNINGS=ignore
-    ports:
-      - "5000:5000"
-    volumes:
-      - ./stripe:/app
-    depends_on:
-      amqp:
-        condition: service_healthy
+  # stripe:
+  #   build:
+  #     context: ./stripe
+  #   env_file:
+  #     - ./stripe/.env
+  #   environment:
+  #     - RABBITMQ_HOST=rabbitmq  
+  #     - RABBITMQ_PORT=5672
+  #     - RABBITMQ_USER=guest
+  #     - RABBITMQ_PASSWORD=guest
+  #     - PYTHONWARNINGS=ignore
+  #   ports:
+  #     - "5000:5000"
+  #   volumes:
+  #     - ./stripe:/app
+  #   depends_on:
+  #     amqp:
+  #       condition: service_healthy
   
-  scenario3:
-    build: 
-      context: .  # Changed from ./scenario3 to .
-      dockerfile: scenario3/Dockerfile
-    ports:
-      - "5006:5006"
-    environment:
-      - RABBITMQ_HOST=rabbitmq
-      - RABBITMQ_PORT=5672
-      - RABBITMQ_USER=guest
-      - RABBITMQ_PASSWORD=guest
-      - STRIPE_SERVICE_URL=http://stripe:5000
-      - FLASK_APP=makeRefunds.py
-      - PYTHONPATH=/app
-      - PYTHONWARNINGS=ignore
-    volumes:
-      - ./scenario3:/app
-      - ./amqp:/app/amqp
-    depends_on:
-      - rabbitmq
-      - stripe
-      - customer  # Add dependency on customer service
-      - order     # Add dependency on order service
-      - delivery  # Add dependency on delivery service
-    restart: unless-stopped
+  # scenario3:
+  #   build: 
+  #     context: .  # Changed from ./scenario3 to .
+  #     dockerfile: scenario3/Dockerfile
+  #   ports:
+  #     - "5006:5006"
+  #   environment:
+  #     - RABBITMQ_HOST=rabbitmq
+  #     - RABBITMQ_PORT=5672
+  #     - RABBITMQ_USER=guest
+  #     - RABBITMQ_PASSWORD=guest
+  #     - STRIPE_SERVICE_URL=http://stripe:5000
+  #     - FLASK_APP=makeRefunds.py
+  #     - PYTHONPATH=/app
+  #     - PYTHONWARNINGS=ignore
+  #   volumes:
+  #     - ./scenario3:/app
+  #     - ./amqp:/app/amqp
+  #   depends_on:
+  #     - rabbitmq
+  #     - stripe
+  #     - customer  # Add dependency on customer service
+  #     - order     # Add dependency on order service
+  #     - delivery  # Add dependency on delivery service
+  #   restart: unless-stopped
 
-  email_service:
-    build:
-      context: .
-      dockerfile: email_service/Dockerfile
-    env_file:
-      - ./email_service/.env
-    environment:
-      - PYTHONPATH=/app
-      - FLASK_APP=email_service.app
-      - PYTHONWARNINGS=ignore
-    ports:
-      - "5005:5005"
-    volumes:
-      - ./email_service:/app/email_service
-      - ./amqp:/app/amqp
-    depends_on:
-      - rabbitmq
+  # email_service:
+  #   build:
+  #     context: .
+  #     dockerfile: email_service/Dockerfile
+  #   env_file:
+  #     - ./email_service/.env
+  #   environment:
+  #     - PYTHONPATH=/app
+  #     - FLASK_APP=email_service.app
+  #     - PYTHONWARNINGS=ignore
+  #   ports:
+  #     - "5005:5005"
+  #   volumes:
+  #     - ./email_service:/app/email_service
+  #     - ./amqp:/app/amqp
+  #   depends_on:
+  #     - rabbitmq
 
   
   # # Make Purchase microservice
