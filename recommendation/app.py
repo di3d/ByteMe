@@ -233,7 +233,7 @@ def get_recommendations_by_customer(customer_id):
             "message": str(e)
         }), 500
     
-@app.route("recommendation/all")
+@app.route("/recommendation/all")
 def get_all_recommendations():
     try:
         conn = get_db_connection()
