@@ -28,6 +28,7 @@ const navLinks = [
     title: "Build Your PC",
     href: "/build",
     submenu: [
+      { title: "Browse", href: "/browse"},
       { title: "Build", href: "/build" },
       { title: "Checkout", href: "/checkout" }, // Added checkout as a purchase option
       { title: "Upgrade", href: "/upgrade" },

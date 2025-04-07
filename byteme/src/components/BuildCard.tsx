@@ -8,6 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Button } from "./ui/button";
 
 type PartDetail = {
   Id: number;
@@ -47,6 +48,26 @@ export default function BuildCard({
     fetchParts();
   }, [infoRows]);
 
+  const handleBuy = async (): Promise<void> => {
+    try {
+      console.log("Processing purchase...");
+  
+      // Simulate an API call or real purchase logic
+      // const response = await fetch('/api/buy', { method: 'POST' });
+      // const result = await response.json();
+  
+      // Show success
+      alert("Purchase successful!");
+  
+      // Optional: Redirect or update app state
+      // router.push('/thank-you');
+    } catch (error) {
+      console.error("Purchase failed:", error);
+      alert("Something went wrong during the purchase.");
+    }
+  };
+  
+
   return (
     <Card className="w-full max-w-md mx-auto rounded-2xl shadow-md">
       <CardHeader>
@@ -75,10 +96,11 @@ export default function BuildCard({
         )}
       </CardContent>
 
-      <CardFooter className="pt-4">
+      <CardFooter className="pt-4 flex justify-between">
         <div className="text-sm font-semibold">
           Total Price: ${totalPrice.toFixed(2)}
         </div>
+        <Button onClick={handleBuy}>Buy</Button>
       </CardFooter>
     </Card>
   );
