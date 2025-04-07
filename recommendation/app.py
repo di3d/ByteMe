@@ -214,7 +214,7 @@ def get_recommendations_by_customer(customer_id):
                     "recommendation_id": rec[0],
                     "customer_id": rec[1],
                     "name": rec[2],
-                    "parts_list": json.loads(rec[3]),  # Return the parts_list as a list of Ids
+                    "parts_list": json.loads(rec[3]) if isinstance(rec[3], str) else rec[3],  # Handle parts_list as a list
                     "cost": float(rec[4]),
                     "timestamp": rec[5].isoformat()
                 }

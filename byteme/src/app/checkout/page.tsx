@@ -40,20 +40,52 @@ const fetchUserRecommendations = async (setRecommendations: React.Dispatch<React
 
     if (!response.ok) {
       const errorData = await response.json();
-      console.error("Error fetching recommendations:", errorData.message);
+      console.error("Error fetching recommendations:", errorData.message || "Unknown error occurred.");
       return;
     }
 
     const data = await response.json();
     console.log("User recommendations:", data.data);
 
-    // Transform API response to match expected structure
-    const transformedRecommendations = data.data.map((rec: any) => ({
-      id: rec.recommendation_id, // Map recommendation_id to id
-      name: rec.name,
-      items: Object.values(rec.parts_list), // Convert parts_list object to an array
-      cost: rec.cost,
-    }));
+    // Fetch full part objects for each recommendation
+    const transformedRecommendations = await Promise.all(
+      data.data.map(async (rec: any) => {
+        const partsList = await Promise.all(
+          rec.parts_list.map(async (partId: number) => {
+            const partResponse = await fetch(
+              `https://personal-0careuf6.outsystemscloud.com/ByteMeComponentService/rest/ComponentAPI/GetComponentById?ComponentId=${partId}`
+            );
+
+            if (!partResponse.ok) {
+              console.error(`Failed to fetch part with ID ${partId}`);
+              return null; // Skip this part if the fetch fails
+            }
+
+            const part = await partResponse.json();
+
+            // Map the retrieved part to the expected structure
+            return {
+              id: part.Id, // Map "Id" to "id"
+              name: part.Name, // Map "Name" to "name"
+              price: part.Price, // Map "Price" to "price"
+              stock: part.Stock, // Include "Stock" if needed
+              imageUrl: part.ImageUrl, // Include "ImageUrl" for display
+              categoryId: part.CategoryId, // Include "CategoryId" for grouping
+            };
+          })
+        );
+
+        // Filter out any null parts (failed fetches)
+        const validPartsList = partsList.filter((part) => part !== null);
+
+        return {
+          id: rec.recommendation_id, // Map recommendation_id to id
+          name: rec.name,
+          items: validPartsList, // Use the fetched part objects
+          cost: rec.cost,
+        };
+      })
+    );
 
     setRecommendations(transformedRecommendations); // Update the recommendations state
   } catch (error) {
@@ -61,12 +93,13 @@ const fetchUserRecommendations = async (setRecommendations: React.Dispatch<React
   }
 };
 
-const groupPartsByCategory = (partsList: Record<string, any>) => {
-  return Object.values(partsList).reduce((groups: Record<string, any[]>, part: any) => {
-    if (!groups[part.category]) {
-      groups[part.category] = [];
+const groupPartsByCategory = (partsList: any[]) => {
+  return partsList.reduce((groups: Record<string, any[]>, part: any) => {
+    const category = part.categoryId || "Uncategorized"; // Use "Uncategorized" if categoryId is missing
+    if (!groups[category]) {
+      groups[category] = [];
     }
-    groups[part.category].push(part);
+    groups[category].push(part);
     return groups;
   }, {});
 };
@@ -93,12 +126,11 @@ export default function Checkout() {
     if (build) {
       setSelectedBuild(build);
 
-      // Check if parts_list exists before grouping
-      if (build.parts_list) {
-        setGroupedComponents(groupPartsByCategory(build.parts_list)); // Group parts by category
+      if (build.items && build.items.length > 0) {
+        setGroupedComponents(groupPartsByCategory(build.items)); // Group parts by category using items
       } else {
-        console.warn("Selected build has no parts_list:", build);
-        setGroupedComponents({}); // Set to an empty object if parts_list is undefined
+        console.warn("Selected build has no items:", build);
+        setGroupedComponents({}); // Set to an empty object if items are undefined or empty
       }
 
       setCheckoutUrl('');
@@ -230,10 +262,19 @@ export default function Checkout() {
                   <ul className="space-y-2">
                     {groupedComponents[category].map((item) => (
                       <li key={item.id} className="flex justify-between items-center border-b pb-2">
-                        <div>
-                          <p className="font-medium">{item.name}</p>
+                        <div className="flex items-center space-x-4">
+                          {item.imageUrl && (
+                            <img
+                              src={item.imageUrl}
+                              alt={item.name || "Part Image"}
+                              className="w-12 h-12 object-cover rounded-md"
+                            />
+                          )}
+                          <p className="font-medium">{item.name || "Unnamed Part"}</p>
                         </div>
-                        <span className="font-medium">{formatAmount(item.price)}</span>
+                        <span className="font-medium">
+                          {item.price ? formatAmount(item.price) : "Price Unavailable"}
+                        </span>
                       </li>
                     ))}
                   </ul>
