@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrig
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from '@/lib/auth-context'; // Add useAuth hook at top
+import { useSearchParams } from 'next/navigation';
 
 // Store and save the user's UID
 import { auth } from "@/lib/firebase";
@@ -24,14 +25,10 @@ const unsubscribe = onAuthStateChanged(auth, (user) => {
 });
 
 const fetchUserRecommendations = async (setRecommendations: React.Dispatch<React.SetStateAction<PCBuild[]>>) => {
-  if (!currentUserId) {
-    console.error("User is not authenticated.");
-    return;
-  }
 
   try {
-    const apiUrl = process.env.NEXT_PUBLIC_RECOMMENDATIONS_API_URL || 'http://localhost:8000';
-    const response = await fetch(`${apiUrl}/recommendation/customer/${currentUserId}`, {
+    const apiUrl = process.env.NEXT_PUBLIC_PUBLIC_RECOMMENDATIONS_API_URL || 'http://localhost:5004';
+    const response = await fetch(`${apiUrl}/recommendation/all`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -45,7 +42,7 @@ const fetchUserRecommendations = async (setRecommendations: React.Dispatch<React
     }
 
     const data = await response.json();
-    console.log("User recommendations:", data.data);
+    console.log("All recommendations:", data.data);
 
     // Fetch full part objects for each recommendation
     const transformedRecommendations = await Promise.all(
@@ -114,6 +111,8 @@ export default function Checkout() {
   const [error, setError] = useState('');
   const [checkoutUrl, setCheckoutUrl] = useState('');
   const hasCreatedSession = useRef(false);
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
+  const searchParams = useSearchParams();
   
   // Fetch recommendations on component mount
   useEffect(() => {
@@ -142,6 +141,38 @@ export default function Checkout() {
       setGroupedComponents({});
     }
   }, [selectedBuildId, recommendations]);
+
+  // ✅ Check if redirected after success
+  useEffect(() => {
+    const success = searchParams.get("success");
+    const session_id = searchParams.get("session_id");
+
+    if (success === "true" && session_id && !hasCreatedSession.current) {
+      hasCreatedSession.current = true;
+      setShowSuccessPopup(true);
+
+      if (user && user.uid && selectedBuild) {
+        const finalPurchase = async () => {
+          try {
+            const response = await fetch('http://localhost:5008/final_purchase', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                session_id,
+                customer_id: user.uid,
+                parts_list: selectedBuild.items.map(item => item.id),
+              }),
+            });
+            const result = await response.json();
+            console.log("✅ Final purchase completed:", result);
+          } catch (err) {
+            console.error("❌ Final purchase failed:", err);
+          }
+        };
+        finalPurchase();
+      }
+    }
+  }, [searchParams, user, selectedBuild]);
 
   // Format amount for display
   const formatAmount = (amount: number) => {
@@ -211,6 +242,12 @@ export default function Checkout() {
     <div className="container mx-auto py-10 px-4 max-w-4xl">
       <h1 className="text-3xl font-bold text-center mb-6">Complete Your Purchase</h1>
       <p className="text-gray-500 text-center mb-10">Select a PC build configuration and proceed to checkout</p>
+
+      {showSuccessPopup && (
+        <div className="mb-6 p-4 rounded-lg bg-green-100 text-green-800 text-center">
+          Your purchase was successful!
+        </div>
+      )}
       
       <div className="grid grid-cols-1 gap-8">
         {/* Build Selection */}
