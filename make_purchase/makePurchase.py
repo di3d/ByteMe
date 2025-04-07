@@ -96,9 +96,7 @@ def make_purchase():
     parts_list = recommendation["data"]["parts_list"]
     available_parts = [] # get parts quantity to check for stock    
     for parts in parts_list:
-        part_id = int(parts["part_id"])
-        print(f"TYPE of part_id: {type(parts['part_id'])} - VALUE: '{parts['part_id']}'") # debugging; check if partid is int
-        print(f"Final GET URL: {partgetURL}?ComponentId={part_id}")
+        part_id = int(parts)
 
         try:
             # Construct the full API URL
@@ -121,7 +119,7 @@ def make_purchase():
                         "Price":part["Price"],
                         "Stock":part["Stock"],
                         "ImageUrl":part["ImageUrl"],
-                        "CreatedAt":part["CreatedAt"],
+                        "CreatedAt": part.get("CreatedAt", ""),  # fallback if missing
                         "CategoryId":part["CategoryId"],
                     }
                 )
@@ -161,6 +159,7 @@ def make_purchase():
     for part in available_parts:
         total_price += part["Price"]
         
+    total_price = int(total_price * 100)
     payment_payload = {
         "amount": total_price,
         "currency": "sgd",
