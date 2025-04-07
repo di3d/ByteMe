@@ -277,8 +277,7 @@ def make_purchase_after_stripe():
     # - use the customer email to send the delivery details
     delivery_data = {
         "order_id":order_id,
-        "customer_id":customer_id,
-        "parts_list":parts_list
+        "customer_id":customer_id
     }
     
     delivery_response = invoke_http(f"{deliveryURL}/delivery", method="POST", json=delivery_data)
