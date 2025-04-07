@@ -15,8 +15,8 @@ DB_PARAMS = {
     "dbname": os.getenv("DB_NAME", "recommendation_db"),
     "user": os.getenv("DB_USER", "esduser"),
     "password": os.getenv("DB_PASSWORD", "esduser"),
-    "host": os.getenv("DB_HOST", "localhost"),  # Special DNS name to access host
-    "port": os.getenv("DB_PORT", "5444"),  # Your host PostgreSQL port
+    "host": os.getenv("DB_HOST", "postgres.yanservers.com"),  # Special DNS name to access host
+    "port": os.getenv("DB_PORT", "5432"),  # Your host PostgreSQL port
 }
 
 
@@ -32,7 +32,7 @@ def ensure_database_exists():
             port=DB_PARAMS["port"]
         )
         conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
-        cursor = conn.cursor()
+        cursor = conn.cursor()  
         
         # Check if database exists
         cursor.execute("SELECT 1 FROM pg_database WHERE datname = 'recommendation_db'")
@@ -232,6 +232,52 @@ def get_recommendations_by_customer(customer_id):
             "code": 500,
             "message": str(e)
         }), 500
+    
+@app.route("/recommendation/all", methods=['GET'])
+def get_all_recommendations():
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Query to get all recommendations for the given customer_id
+        cursor.execute("""
+            SELECT *
+            FROM recommendations
+        """)
+        recommendations = cursor.fetchall()
+        
+        cursor.close()
+        conn.close()
+
+        if recommendations:
+            # Format the response data
+            recommendations_list = [
+                {
+                    "recommendation_id": rec[0],
+                    "customer_id": rec[1],
+                    "name": rec[2],
+                    "parts_list": [part["Id"] for part in rec[4].values()],
+                    "timestamp": rec[5].isoformat()
+                }
+                for rec in recommendations
+            ]
+        
+
+            return jsonify({
+                "code": 200,
+                "data": recommendations_list
+            }), 200
+        else:
+            return jsonify({
+                "code": 404,
+                "message": "No recommendations found! Is the database empty?"
+            }), 404
+    
+    except Exception as e:
+        return jsonify({
+            "code": 500,
+            "message": str(e)
+        }), 500
 
 if __name__ == '__main__':
     # First ensure database exists, then initialize tables
@@ -242,4 +288,4 @@ if __name__ == '__main__':
         print(f"Failed to initialize database: {str(e)}")
         exit(1)
     
-    app.run(host='0.0.0.0', port=5004)
+    app.run(host='0.0.0.0', port=5004, debug=True)
