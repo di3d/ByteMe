@@ -45,7 +45,7 @@ export default function AccountPage() {
       }
 
       try {
-        const response = await fetch(`http://localhost:5001/customer/${auth.currentUser.uid}`);
+        const response = await fetch(`http://localhost:8000/customer-route/customer/${auth.currentUser.uid}`);
         const data = await response.json();
 
         if (data.code === 200) {
@@ -77,13 +77,13 @@ export default function AccountPage() {
   async function onSubmit(data: AccountFormValues) {
     try {
       // Submit data to backend
-      const response = await fetch('http://localhost:5001/customer', {
-        method: 'POST',
+      const response = await fetch(`http://localhost:8000/customer-route/customer/${auth.currentUser?.uid}`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          customer_id: auth.currentUser?.uid,
           name: auth.currentUser?.displayName || 'Unknown',
           address: data.address,
+          // phone: data.phone,
           email: auth.currentUser?.email
         }),
       });

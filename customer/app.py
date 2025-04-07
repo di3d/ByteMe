@@ -225,6 +225,72 @@ def create_customer():
             "message": str(e)
         }), 500
 
+@app.route("/customer/<string:customer_id>", methods=['PUT'])
+def update_customer(customer_id):
+    try:
+        data = request.get_json()
+        
+        # Validate required fields
+        required_fields = ["name", "address", "email"]
+        for field in required_fields:
+            if field not in data:
+                return jsonify({
+                    "code": 400,
+                    "message": f"Missing required field: {field}"
+                }), 400
+
+        # Update customer details in the database
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute(
+            """
+            UPDATE customers
+            SET name = %s, address = %s, email = %s
+            WHERE customer_id = %s
+            RETURNING customer_id, name, address, email
+            """,
+            (
+                data["name"],
+                data["address"],
+                data["email"],
+                customer_id
+            )
+        )
+        
+        updated_customer = cursor.fetchone()
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        if updated_customer:
+            return jsonify({
+                "code": 200,
+                "message": "Customer updated successfully",
+                "data": {
+                    "customer_id": updated_customer[0],
+                    "name": updated_customer[1],
+                    "address": updated_customer[2],
+                    "email": updated_customer[3]
+                }
+            }), 200
+        else:
+            return jsonify({
+                "code": 404,
+                "message": "Customer not found"
+            }), 404
+
+    except Exception as e:
+        if 'conn' in locals():
+            conn.rollback()
+            if 'cursor' in locals():
+                cursor.close()
+            conn.close()
+        return jsonify({
+            "code": 500,
+            "message": str(e)
+        }), 500
+
 if __name__ == '__main__':
     try:
         ensure_database_exists()

@@ -88,7 +88,7 @@ def get_delivery(delivery_id):
         cursor = conn.cursor()
         
         cursor.execute("""
-            SELECT delivery_id, order_id, customer_id, parts_list, 
+            SELECT delivery_id, order_id, customer_id, 
                 created_at, updated_at
             FROM deliveries 
             WHERE delivery_id = %s
@@ -105,9 +105,8 @@ def get_delivery(delivery_id):
                     "delivery_id": delivery_data[0],
                     "order_id": delivery_data[1],
                     "customer_id": delivery_data[2],
-                    "parts_list": delivery_data[3],
-                    "created_at": delivery_data[4].isoformat(),
-                    "updated_at": delivery_data[5].isoformat()
+                    "created_at": delivery_data[3].isoformat(),
+                    "updated_at": delivery_data[4].isoformat()
                 }
             }), 200
         else:
@@ -128,20 +127,13 @@ def create_delivery():
         data = request.get_json()
         
         # Validate fields
-        required_fields = ["order_id", "customer_id", "parts_list"]
+        required_fields = ["order_id", "customer_id"]
         for field in required_fields:
             if field not in data:
                 return jsonify({
                     "code": 400, 
                     "message": f"Missing required field: {field}"
                 }), 400
-                
-        # Validate parts_list is a list
-        if not isinstance(data["parts_list"], list):
-            return jsonify({
-                "code": 400,
-                "message": "parts_list must be an array"
-            }), 400
                 
         # Generate delivery_id and timestamp
         delivery_id = str(uuid.uuid4())
@@ -154,16 +146,15 @@ def create_delivery():
         cursor.execute(
             """
             INSERT INTO deliveries (
-                delivery_id, order_id, customer_id, parts_list,
+                delivery_id, order_id, customer_id,
                 created_at, updated_at
-            ) VALUES (%s, %s, %s, %s::jsonb, %s, %s)
+            ) VALUES (%s, %s, %s, %s, %s)
             RETURNING *
             """,
             (
                 delivery_id,
                 data["order_id"],
                 data["customer_id"],
-                json.dumps(data["parts_list"]),  # Convert list to JSON string
                 current_time,
                 current_time
             )
@@ -181,9 +172,8 @@ def create_delivery():
                 "delivery_id": new_delivery[0],
                 "order_id": new_delivery[1],
                 "customer_id": new_delivery[2],
-                "parts_list": new_delivery[3],
-                "created_at": new_delivery[4].isoformat(),
-                "updated_at": new_delivery[5].isoformat()
+                "created_at": new_delivery[3].isoformat(),
+                "updated_at": new_delivery[4].isoformat()
             }
         }), 201
         
@@ -218,10 +208,6 @@ def update_delivery(delivery_id):
         if "customer_id" in data:
             update_fields.append("customer_id = %s")
             update_values.append(data["customer_id"])
-            
-        if "parts_list" in data:
-            update_fields.append("parts_list = %s")
-            update_values.append(data["parts_list"])
         
         # Always update the updated_at timestamp
         update_fields.append("updated_at = %s")
@@ -260,9 +246,8 @@ def update_delivery(delivery_id):
                 "delivery_id": updated_delivery[0],
                 "order_id": updated_delivery[1],
                 "customer_id": updated_delivery[2],
-                "parts_list": updated_delivery[3],
-                "created_at": updated_delivery[4].isoformat(),
-                "updated_at": updated_delivery[5].isoformat()
+                "created_at": updated_delivery[3].isoformat(),
+                "updated_at": updated_delivery[4].isoformat()
             }
         }), 200
         

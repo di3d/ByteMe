@@ -140,7 +140,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 const checkAndRedirectIfNeeded = async (user: User) => {
   try {
-    const response = await fetch(`http://localhost:8000/customer/${user.uid}`);
+    const response = await fetch(`http://localhost:5001/customer/${user.uid}`);
     const data = await response.json();
     
     // If user doesn't exist or has no valid address
@@ -149,7 +149,7 @@ const checkAndRedirectIfNeeded = async (user: User) => {
       (data.code === 200 && (!data.data.address || data.data.address === "Not provided"))
     ) {
       // Redirect to account setup
-      window.location.href = '/account-setup';
+      // window.location.href = 'app/account/page.tsx';
     }
   } catch (error) {
     console.error("Error checking user profile:", error);
