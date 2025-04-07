@@ -253,17 +253,10 @@ def get_all_recommendations():
         conn.close()
 
         if recommendations:
-            # Format the response data
-            recommendations_list = [
-                {
-                    "recommendation_id": rec[0],
-                    "customer_id": rec[1],
-                    "name": rec[2],
-                    "parts_list": [part["Id"] for part in rec[4].values()],
-                    "timestamp": rec[5].isoformat()
-                }
-                for rec in recommendations
-            ]
+            recommendations_list = []
+            for rec in recommendations:
+                recommendations_list.append(rec)
+            
         
 
             return jsonify({
