@@ -16,7 +16,7 @@ DB_PARAMS = {
     "user": os.getenv("DB_USER", "esduser"),
     "password": os.getenv("DB_PASSWORD", "esduser"),
     "host": os.getenv("DB_HOST", "localhost"),  # Special DNS name to access host
-    "port": os.getenv("DB_PORT", "5444"),  # Your host PostgreSQL port
+    "port": os.getenv("DB_PORT", "5432"),  # Your host PostgreSQL port
 }
 
 
@@ -242,4 +242,4 @@ if __name__ == '__main__':
         print(f"Failed to initialize database: {str(e)}")
         exit(1)
     
-    app.run(host='0.0.0.0', port=5004)
+    app.run(host='0.0.0.0', port=5004, debug=True)
