@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const axios = require("axios");
+const { json } = require("body-parser");
 
 const app = express();
 app.use(cors());
@@ -24,9 +25,151 @@ app.post("/chat", async (req, res) => {
 
     // Send query to Ollama
     const ollamaResponse = await axios.post(OLLAMA_URL, {
-      model: "deepseek-r1:14b",
-      prompt: `Available components:\n${componentList}\n\nRecommend PC parts based on: ${message} \n Do not deviate outside of the components given to you. \n Your component list should have the following components, in this order : CPU, Motherboard, GPU, RAM, SSD, CASING, PSU, COOLER \n Where there are no suitable parts, simply put no recommendations`,
+      model: "llama3.2",
+      prompt: `Available components: ${componentList} 
+      Recommend PC parts based on: ${message}
+      Do not deviate outside of the components given to you. 
+      Your component list should have the following components, in this order : CPU, Motherboard, GPU, RAM, SSD, CASING, PSU, COOLER 
+      Where there are no suitable parts, simply put no recommendations`,
       stream: false,
+      format: {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "PC Component Recommendation",
+        "description": "A schema for recommended PC components with IDs",
+        "type": "object",
+        "properties": {
+          "CPU": {
+            "type": "object",
+            "properties": {
+              "Name": {
+                "type": "string",
+                "description": "CPU model name",
+                "examples": ["Intel Core i9-13900K", "AMD Ryzen 9 7950X"]
+              },
+              "ComponentId": {
+                "type": "integer",
+                "description": "Unique identifier for the component",
+                "examples": [101, 102]
+              }
+            },
+            "required": ["Name", "ComponentId"]
+          },
+          "Motherboard": {
+            "type": "object",
+            "properties": {
+              "Name": {
+                "type": "string",
+                "description": "Motherboard model name",
+                "examples": ["ASUS ROG Maximus Z790 Hero", "MSI MAG B550 TOMAHAWK"]
+              },
+              "ComponentId": {
+                "type": "integer",
+                "description": "Unique identifier for the component",
+                "examples": [201, 202]
+              }
+            },
+            "required": ["Name", "ComponentId"]
+          },
+          "GPU": {
+            "type": "object",
+            "properties": {
+              "Name": {
+                "type": "string",
+                "description": "GPU model name",
+                "examples": ["NVIDIA RTX 4090", "AMD Radeon RX 7900 XTX"]
+              },
+              "ComponentId": {
+                "type": "integer",
+                "description": "Unique identifier for the component",
+                "examples": [301, 302]
+              }
+            },
+            "required": ["Name", "ComponentId"]
+          },
+          "RAM": {
+            "type": "object",
+            "properties": {
+              "Name": {
+                "type": "string",
+                "description": "RAM kit name",
+                "examples": ["32GB DDR5-6000", "64GB DDR4-3600"]
+              },
+              "ComponentId": {
+                "type": "integer",
+                "description": "Unique identifier for the component",
+                "examples": [401, 402]
+              }
+            },
+            "required": ["Name", "ComponentId"]
+          },
+          "SSD": {
+            "type": "object",
+            "properties": {
+              "Name": {
+                "type": "string",
+                "description": "SSD model name",
+                "examples": ["Samsung 990 Pro 2TB", "WD Black SN850X 1TB"]
+              },
+              "ComponentId": {
+                "type": "integer",
+                "description": "Unique identifier for the component",
+                "examples": [501, 502]
+              }
+            },
+            "required": ["Name", "ComponentId"]
+          },
+          "CASING": {
+            "type": "object",
+            "properties": {
+              "Name": {
+                "type": "string",
+                "description": "Case model name",
+                "examples": ["Lian Li PC-O11 Dynamic", "Fractal Design Torrent"]
+              },
+              "ComponentId": {
+                "type": "integer",
+                "description": "Unique identifier for the component",
+                "examples": [601, 602]
+              }
+            },
+            "required": ["Name", "ComponentId"]
+          },
+          "PSU": {
+            "type": "object",
+            "properties": {
+              "Name": {
+                "type": "string",
+                "description": "Power supply model name",
+                "examples": ["Corsair RM1000x", "Seasonic PRIME TX-1000"]
+              },
+              "ComponentId": {
+                "type": "integer",
+                "description": "Unique identifier for the component",
+                "examples": [701, 702]
+              }
+            },
+            "required": ["Name", "ComponentId"]
+          },
+          "COOLER": {
+            "type": "object",
+            "properties": {
+              "Name": {
+                "type": "string",
+                "description": "Cooler model name",
+                "examples": ["Noctua NH-D15", "Corsair iCUE H150i ELITE LCD"]
+              },
+              "ComponentId": {
+                "type": "integer",
+                "description": "Unique identifier for the component",
+                "examples": [801, 802]
+              }
+            },
+            "required": ["Name", "ComponentId"]
+          }
+        },
+        "required": ["CPU", "Motherboard", "GPU", "RAM", "SSD", "CASING", "PSU", "COOLER"],
+        "additionalProperties": false
+      }
       
     });
 

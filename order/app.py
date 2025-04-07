@@ -119,6 +119,49 @@ def get_order(order_id):
             "code": 500,
             "message": str(e)
         }), 500
+        
+@app.route("/order/customers/<string:customer_id>", methods=['GET'])
+def get_orders_by_customer(customer_id):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT order_id, customer_id, parts_list, status, timestamp
+            FROM orders 
+            WHERE customer_id = %s
+        """, (customer_id,))
+        orders_data = cursor.fetchall()
+        
+        cursor.close()
+        conn.close()
+        
+        if orders_data:
+            orders = []
+            for order in orders_data:
+                orders.append({
+                    "order_id": order[0],
+                    "customer_id": order[1],
+                    "parts_list": order[2],
+                    "status": order[3],
+                    "timestamp": order[4].isoformat()
+                })
+            
+            return jsonify({
+                "code": 200,
+                "data": orders
+            }), 200
+        else:
+            return jsonify({
+                "code": 404,
+                "message": "No orders found for this customer"
+            }), 404
+            
+    except Exception as e:
+        return jsonify({
+            "code": 500,
+            "message": str(e)
+        }), 500
 
 @app.route("/order", methods=['POST'])
 def create_order():
@@ -235,6 +278,137 @@ def get_all_orders():
             "message": str(e)
         }), 500
 
+@app.route("/order/<string:order_id>/status", methods=['PUT'])
+def update_order_status(order_id):
+    """Update the status of an order"""
+    try:
+        data = request.get_json()
+        
+        if "status" not in data:
+            return jsonify({
+                "code": 400,
+                "message": "Missing required field: status"
+            }), 400
+            
+        status = data["status"]
+        # Validate status
+        valid_statuses = ["pending", "processing", "completed", "refunded", "refund_pending"]
+        if status not in valid_statuses:
+            return jsonify({
+                "code": 400,
+                "message": f"Invalid status. Must be one of: {', '.join(valid_statuses)}"
+            }), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Check if order exists
+        cursor.execute("SELECT order_id FROM orders WHERE order_id = %s", (order_id,))
+        if not cursor.fetchone():
+            cursor.close()
+            conn.close()
+            return jsonify({
+                "code": 404,
+                "message": "Order not found"
+            }), 404
+        
+        # Update the order status
+        cursor.execute(
+            """
+            UPDATE orders 
+            SET status = %s
+            WHERE order_id = %s
+            RETURNING order_id, customer_id, parts_list, status, timestamp
+            """,
+            (status, order_id)
+        )
+        
+        updated_order = cursor.fetchone()
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        if updated_order:
+            return jsonify({
+                "code": 200,
+                "message": "Order status updated successfully",
+                "data": {
+                    "order_id": updated_order[0],
+                    "customer_id": updated_order[1],
+                    "parts_list": updated_order[2],
+                    "status": updated_order[3],
+                    "timestamp": updated_order[4].isoformat()
+                }
+            }), 200
+        else:
+            return jsonify({
+                "code": 500,
+                "message": "Failed to update order status"
+            }), 500
+            
+    except Exception as e:
+        return jsonify({
+            "code": 500,
+            "message": str(e)
+        }), 500
+        
+        
+@app.route("/order/<string:order_id>", methods=['DELETE'])
+def delete_order(order_id):
+    """Delete an order by its ID"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Check if order exists first
+        cursor.execute("SELECT order_id FROM orders WHERE order_id = %s", (order_id,))
+        if not cursor.fetchone():
+            cursor.close()
+            conn.close()
+            return jsonify({
+                "code": 404,
+                "message": "Order not found"
+            }), 404
+        
+        # Delete the order
+        cursor.execute(
+            """
+            DELETE FROM orders 
+            WHERE order_id = %s
+            RETURNING order_id
+            """,
+            (order_id,)
+        )
+        
+        deleted_order = cursor.fetchone()
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        if deleted_order:
+            return jsonify({
+                "code": 200,
+                "message": "Order deleted successfully",
+                "data": {
+                    "order_id": deleted_order[0]
+                }
+            }), 200
+        else:
+            return jsonify({
+                "code": 500,
+                "message": "Failed to delete order"
+            }), 500
+            
+    except Exception as e:
+        if 'conn' in locals():
+            conn.rollback()
+            if 'cursor' in locals():
+                cursor.close()
+            conn.close()
+        return jsonify({
+            "code": 500,
+            "message": str(e)
+        }), 500
 
 if __name__ == '__main__':
     # Only ensure the database exists, no table initialization

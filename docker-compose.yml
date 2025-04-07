@@ -59,8 +59,6 @@ services:
       - FLASK_APP=app.py
       - DB_HOST=postgres.yanservers.com # Update to the external PostgreSQL server hostname
       - DB_PORT=5432       # Update to the external PostgreSQL server port
-      - DB_HOST=host.docker.internal  # Use host.docker.internal to connect to the host machine
-      - DB_PORT=5444  # Host machine's PostgreSQL port
       - DB_NAME=customer_db
       - DB_USER=esduser
       - DB_PASSWORD=esduser
@@ -167,6 +165,9 @@ services:
     depends_on:
       - rabbitmq
       - stripe
+      - customer  # Add dependency on customer service
+      - order     # Add dependency on order service
+      - delivery  # Add dependency on delivery service
     restart: unless-stopped
 
   email_service:

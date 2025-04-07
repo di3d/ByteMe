@@ -1,6 +1,17 @@
 name: byteme
 services:
+  # Base Ollama service without GPU (for Mac)
   ollama:
+    container_name: ollama
+    image: ollama/ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    profiles: ["default", "cpu"]
+
+  # GPU-enabled Ollama (for Windows with NVIDIA)
+  ollama-gpu:
     container_name: ollama
     image: ollama/ollama
     ports:
@@ -14,6 +25,7 @@ services:
             - driver: nvidia
               count: 1
               capabilities: [gpu]
+    profiles: ["gpu"]
 
   kong:
     container_name: kong
@@ -23,12 +35,12 @@ services:
       - "8001:8001"  # Admin API
       - "8002:8002"  # Kong Manager
     environment:
-      KONG_DATABASE: "postgres"  # Changed from "off"
+      KONG_DATABASE: "postgres"
       KONG_PG_HOST: "postgres.yanservers.com"
       KONG_PG_PORT: "5432"
       KONG_PG_USER: "esduser"
       KONG_PG_PASSWORD: "esduser"
-      KONG_PG_DATABASE: "kong"  # Default database name
+      KONG_PG_DATABASE: "kong"
       KONG_ADMIN_LISTEN: "0.0.0.0:8001"
       KONG_ADMIN_GUI_LISTEN: "0.0.0.0:8002"
       KONG_ADMIN_GUI_URL: "http://localhost:8002"
@@ -52,4 +64,4 @@ services:
   #     - ./secrets/.env
 
 volumes:
-  ollama_data: 
+  ollama_data:
