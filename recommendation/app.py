@@ -15,7 +15,7 @@ DB_PARAMS = {
     "dbname": os.getenv("DB_NAME", "recommendation_db"),
     "user": os.getenv("DB_USER", "esduser"),
     "password": os.getenv("DB_PASSWORD", "esduser"),
-    "host": os.getenv("DB_HOST", "localhost"),  # Special DNS name to access host
+    "host": os.getenv("DB_HOST", "postgres.yanservers.com"),  # Special DNS name to access host
     "port": os.getenv("DB_PORT", "5432"),  # Your host PostgreSQL port
 }
 
@@ -233,7 +233,7 @@ def get_recommendations_by_customer(customer_id):
             "message": str(e)
         }), 500
     
-@app.route("/recommendation/all")
+@app.route("/recommendation/all", methods=['GET'])
 def get_all_recommendations():
     try:
         conn = get_db_connection()
@@ -248,6 +248,23 @@ def get_all_recommendations():
         
         cursor.close()
         conn.close()
+
+        if recommendations:
+            # Format the response data
+            print(recommendations)
+            recommendations_list = []
+            for rec in recommendations:
+                recommendations_list.append(rec)
+           
+            return jsonify({
+                "code": 200,
+                "data": recommendations_list
+            }), 200
+        else:
+            return jsonify({
+                "code": 404,
+                "message": "No recommendations found! Is the database empty?"
+            }), 404
     
     except Exception as e:
         return jsonify({
