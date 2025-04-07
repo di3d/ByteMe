@@ -8,7 +8,6 @@ const info = [
     { label: "OS", value: "Windows 11 Pro" },
     { label: "Form Factor", value: "ATX Mid Tower" },
     { label: "Power Supply", value: "750W Gold" },
-    { label: "Warranty", value: "3 Years" },
   ];
 
 export default function Browse() {
@@ -23,7 +22,7 @@ export default function Browse() {
         </div>
       </header>
       <body>
-        <BuildCard title="Bob's PC" infoRows={info} totalPrice={3333}></BuildCard>
+        <BuildCard title="Bob's PC" infoRows={info} totalPrice={333}></BuildCard>
       </body>
     </div>
   );

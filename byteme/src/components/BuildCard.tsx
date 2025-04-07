@@ -11,12 +11,14 @@ import {
 export default function BuildCard(
   {
     title,
+    totalPrice,
     infoRows,
   }: {
     title: string;
+    totalPrice: number;
     infoRows: { label: string; value: string }[];
   },
-  totalPrice: number
+  
 ) {
   return (
     <Card className="w-full max-w-md mx-auto rounded-2xl shadow-md">

@@ -32,7 +32,7 @@ def ensure_database_exists():
             port=DB_PARAMS["port"]
         )
         conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
-        cursor = conn.cursor()
+        cursor = conn.cursor()  
         
         # Check if database exists
         cursor.execute("SELECT 1 FROM pg_database WHERE datname = 'recommendation_db'")
@@ -227,6 +227,28 @@ def get_recommendations_by_customer(customer_id):
                 "message": "No recommendations found for the given customer ID"
             }), 404
             
+    except Exception as e:
+        return jsonify({
+            "code": 500,
+            "message": str(e)
+        }), 500
+    
+@app.route("recommendation/all")
+def get_all_recommendations():
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Query to get all recommendations for the given customer_id
+        cursor.execute("""
+            SELECT *
+            FROM recommendations
+        """)
+        recommendations = cursor.fetchall()
+        
+        cursor.close()
+        conn.close()
+    
     except Exception as e:
         return jsonify({
             "code": 500,
