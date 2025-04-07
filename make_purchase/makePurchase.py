@@ -19,12 +19,22 @@ CORS(app)
 
 # RabbitMQ connection details (use the same as in `amqp_setup.py`)
 rabbit_host = "localhost"
-rabbit_port = 5672
+rabbit_port = 5673
 exchange_name = "order_topic"
 
 # Connect to RabbitMQ
 connection = pika.BlockingConnection(pika.ConnectionParameters(host=rabbit_host, port=rabbit_port))
 channel = connection.channel()
+
+# Set default values for environment variables
+environ.setdefault("customerURL", "http://localhost:5001/customer")
+environ.setdefault("recommendationURL", "http://localhost:5004/recommendation")
+environ.setdefault("partpostURL", "https://personal-0careuf6.outsystemscloud.com/ByteMeComponentService/rest/ComponentAPI/AddComponent")
+environ.setdefault("partgetURL", "https://personal-0careuf6.outsystemscloud.com/ByteMeComponentService/rest/ComponentAPI/GetComponentById")
+environ.setdefault("orderURL", "http://localhost:5002/")
+environ.setdefault("deliveryURL", "http://localhost:5003/")
+environ.setdefault("stripeURL", "http://localhost:5000/")
+
 
 # Relevant REST APIs (microservices)
 customerURL = environ.get('customerURL')
@@ -277,8 +287,7 @@ def make_purchase_after_stripe():
     # - use the customer email to send the delivery details
     delivery_data = {
         "order_id":order_id,
-        "customer_id":customer_id,
-        "parts_list":parts_list
+        "customer_id":customer_id
     }
     
     delivery_response = invoke_http(f"{deliveryURL}/delivery", method="POST", json=delivery_data)
