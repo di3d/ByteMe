@@ -1,42 +1,44 @@
-import requests  # ✅ import the correct library, not Flask
+import requests
 
 SUPPORTED_HTTP_METHODS = set([
     "GET", "OPTIONS", "HEAD", "POST", "PUT", "PATCH", "DELETE"
 ])
 
 def invoke_http(url, method='GET', json=None, **kwargs):
-    """A simple wrapper for requests methods.
-    url: the url of the http service;
-    method: the http method;
-    data: the JSON input when needed by the http method;
-    return: the JSON reply content from the http service if the call succeeds;
-        otherwise, return a JSON object with a "code" name-value pair.
-    """
-    code = 200
-    result = {}
-    
     print(f"Invoking {method} request to {url}")
     if json:
         print(f"Payload: {json}")
 
+    headers = {
+        "Accept": "*/*",
+        "User-Agent": "PostmanRuntime/7.43.3",
+        "Connection": "keep-alive",
+        "Accept-Encoding": "gzip, deflate, br"
+    }
+
     try:
-        if method.upper() in SUPPORTED_HTTP_METHODS:
-            r = requests.request(method, url, json=json, **kwargs)
-        else:
-            raise Exception("HTTP method {} unsupported.".format(method))
-    except Exception as e:
-        code = 500
-        result = {"code": code, "message": "invocation of service fails: " + url + ". " + str(e)}
-    if code not in range(200,300):
+        if method.upper() not in SUPPORTED_HTTP_METHODS:
+            raise Exception(f"HTTP method {method} unsupported.")
+
+        response = requests.request(method, url, headers=headers, json=json, **kwargs)
+
+        print(">>> Final URL:", response.url)
+        print(">>> Status:", response.status_code)
+        print(">>> Response:", response.text)
+
+        try:
+            result = response.json() if response.content else {}
+        except Exception as e:
+            return {
+                "code": 500,
+                "message": f"Invalid JSON output from service: {url}. {str(e)}"
+            }
+
+        result["code"] = response.status_code
         return result
 
-    ## Check http call result
-    if r.status_code != requests.codes.ok:
-        code = r.status_code
-    try:
-        result = r.json() if len(r.content)>0 else ""
     except Exception as e:
-        code = 500
-        result = {"code": code, "message": "Invalid JSON output from service: " + url + ". " + str(e)}
-
-    return result
+        return {
+            "code": 500,
+            "message": f"invocation of service fails: {url}. {str(e)}"
+        }
