@@ -79,7 +79,7 @@ def get_recommendation(recommendation_id):
                     "recommendation_id": recommendation_data[0],
                     "customer_id": recommendation_data[1],
                     "name": recommendation_data[2],
-                    "parts_list": recommendation_data[3],
+                    "parts_list": json.loads(recommendation_data[3]),  # Return the parts_list as a list of Ids
                     "cost": float(recommendation_data[4]),
                     "timestamp": recommendation_data[5].isoformat()
                 }
@@ -110,12 +110,15 @@ def create_recommendation():
                     "message": f"Missing required field: {field}"
                 }), 400
                 
-        # Validate parts_list is a dictionary
-        if not isinstance(data["parts_list"], dict):
+        # Validate parts_list is an object (dictionary) with part objects containing an 'Id' attribute
+        if not isinstance(data["parts_list"], dict) or not all("Id" in part for part in data["parts_list"].values()):
             return jsonify({
                 "code": 400,
-                "message": "parts_list must be an object"
+                "message": "parts_list must be an object where each value contains an 'Id' attribute"
             }), 400
+
+        # Transform parts_list to a list of 'Id' values
+        transformed_parts_list = [part["Id"] for part in data["parts_list"].values()]
 
         # Validate cost is a positive number
         if not isinstance(data["cost"], (int, float)) or data["cost"] < 0:
@@ -143,7 +146,7 @@ def create_recommendation():
                 recommendation_id,
                 data["customer_id"],
                 data["name"],
-                json.dumps(data["parts_list"]),
+                json.dumps(transformed_parts_list),  # Save the transformed parts_list as a JSON array
                 data["cost"],
                 current_time
             )
@@ -171,7 +174,7 @@ def create_recommendation():
                 "customer_id": new_recommendation[1],
                 "name": new_recommendation[2],
                 "cost": float(new_recommendation[3]),
-                "parts_list": new_recommendation[4],
+                "parts_list": transformed_parts_list,  # Return the transformed parts_list
                 "timestamp": new_recommendation[5].isoformat()
             }
         }), 201
@@ -211,7 +214,7 @@ def get_recommendations_by_customer(customer_id):
                     "recommendation_id": rec[0],
                     "customer_id": rec[1],
                     "name": rec[2],
-                    "parts_list": rec[3],
+                    "parts_list": json.loads(rec[3]),  # Return the parts_list as a list of Ids
                     "cost": float(rec[4]),
                     "timestamp": rec[5].isoformat()
                 }

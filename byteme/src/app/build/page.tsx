@@ -128,7 +128,7 @@ export default function PCBuilder() {
       };
 
       const response = await fetch(
-        "http://recommendation:5004/recommendation",
+        "http://localhost:8000/recommendation-route/recommendation",
         {
           method: "POST",
           headers: {
