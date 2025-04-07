@@ -30,7 +30,7 @@ const fetchUserRecommendations = async (setRecommendations: React.Dispatch<React
   }
 
   try {
-    const apiUrl = process.env.NEXT_PUBLIC_RECOMMENDATIONS_API_URL || 'http://localhost:5004';
+    const apiUrl = process.env.NEXT_PUBLIC_RECOMMENDATIONS_API_URL || 'http://localhost:8000';
     const response = await fetch(`${apiUrl}/recommendation/customer/${currentUserId}`, {
       method: 'GET',
       headers: {

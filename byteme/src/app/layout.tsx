@@ -1,15 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeProvider } from "../components/theme-provider";
-import { Sidebar } from "lucide-react";
-import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from "@/components/ui/sidebar";
-import { Separator } from "@/components/ui/separator";
 import Navbar from "@/components/navbar";
 import { AuthProvider } from "@/lib/auth-context"; // Add this import
 import { Toaster } from "sonner";

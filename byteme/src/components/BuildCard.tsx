@@ -24,10 +24,12 @@ export default function BuildCard({
   title,
   totalPrice,
   infoRows,
+  showSaveButton,
 }: {
   title: string;
   totalPrice: number;
   infoRows: number[];
+  showSaveButton: boolean;
 }) {
   const [parts, setParts] = useState<PartDetail[]>([]);
 
@@ -48,7 +50,7 @@ export default function BuildCard({
     fetchParts();
   }, [infoRows]);
 
-  const handleBuy = async (): Promise<void> => {
+  const handleSave = async (): Promise<void> => {
     try {
       console.log("Processing purchase...");
   
@@ -100,7 +102,7 @@ export default function BuildCard({
         <div className="text-sm font-semibold">
           Total Price: ${totalPrice.toFixed(2)}
         </div>
-        <Button onClick={handleBuy}>Buy</Button>
+        <Button hidden={!showSaveButton} onClick={handleSave}>Save to My Builds!</Button>
       </CardFooter>
     </Card>
   );

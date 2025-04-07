@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Key, useEffect, useState } from "react";
 import axios from "axios";
 import BuildCard from "@/components/BuildCard";
 
 export default function Browse() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [data, setData] = useState<any>(null); // Use appropriate type instead of `any`
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -44,12 +45,13 @@ export default function Browse() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {data.data.map((rec) => (
+        {data.data.map((rec: { recommendation_id: Key | null | undefined; name: string; cost: number; parts_list: number[]; }) => (
           <BuildCard
             key={rec.recommendation_id}
             title={rec.name}
             totalPrice={rec.cost}
             infoRows={rec.parts_list}
+            showSaveButton={true}
           />
         ))}
       </div>
