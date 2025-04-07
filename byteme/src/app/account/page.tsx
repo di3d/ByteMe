@@ -1,6 +1,6 @@
-// app/account/page.tsx
 "use client"
 
+import { useEffect, useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -16,11 +16,10 @@ import {
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import { getAuth } from "firebase/auth"
-import { toast } from "sonner" // Updated import
+import { toast } from "sonner"
 
-// Form schema validation
+// Form schema validation - remove email from the schema since it's disabled
 const accountFormSchema = z.object({
-  email: z.string().email("Invalid email address").optional(),
   phone: z.string().min(10, "Phone number too short").max(15),
   address: z.string().min(5, "Address too short"),
 })
@@ -28,33 +27,82 @@ const accountFormSchema = z.object({
 type AccountFormValues = z.infer<typeof accountFormSchema>
 
 export default function AccountPage() {
-  const auth = getAuth()
-  
-  // Mock current user data
-  const currentUser = {
-    email: auth.currentUser?.email || "",
-    phone: "+1 (555) 123-4567",
-    address: "123 Tech Street, Silicon Valley",
-  }
+  const auth = getAuth();
+  const [loading, setLoading] = useState(true);
+
+  // State to hold customer data
+  const [customerData, setCustomerData] = useState({
+    phone: "",
+    address: "Not provided",
+  });
+
+  // Fetch customer data from backend
+  useEffect(() => {
+    const fetchCustomerData = async () => {
+      if (!auth.currentUser?.uid) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const response = await fetch(`http://localhost:5001/customer/${auth.currentUser.uid}`);
+        const data = await response.json();
+
+        if (data.code === 200) {
+          setCustomerData({
+            phone: data.data.phone || "",
+            address: data.data.address || "Not provided",
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching customer data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCustomerData();
+  }, [auth.currentUser]);
 
   const form = useForm<AccountFormValues>({
     resolver: zodResolver(accountFormSchema),
-    defaultValues: {
-      email: currentUser.email,
-      phone: currentUser.phone,
-      address: currentUser.address,
-    },
-  })
+    defaultValues: customerData,
+  });
+
+  // Update form when customer data changes
+  useEffect(() => {
+    form.reset(customerData);
+  }, [customerData, form]);
 
   async function onSubmit(data: AccountFormValues) {
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      toast.success("Profile updated successfully") // Sonner toast
+      // Submit data to backend
+      const response = await fetch('http://localhost:5001/customer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customer_id: auth.currentUser?.uid,
+          name: auth.currentUser?.displayName || 'Unknown',
+          address: data.address,
+          email: auth.currentUser?.email
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.code === 200 || result.code === 201) {
+        toast.success("Profile updated successfully");
+      } else {
+        throw new Error(result.message || "Failed to update profile");
+      }
     } catch (error) {
-      toast.error("Failed to update profile") // Error toast
+      console.error("Error updating profile:", error);
+      toast.error("Failed to update profile");
     }
+  }
+
+  if (loading) {
+    return <div className="container mx-auto py-8">Loading your profile...</div>;
   }
 
   return (
@@ -69,29 +117,21 @@ export default function AccountPage() {
 
         <Separator />
 
+        {/* Email field outside the form */}
+        <div className="space-y-2 mb-6">
+          <label className="text-sm font-medium">Email</label>
+          <Input
+            value={auth.currentUser?.email || ""}
+            disabled
+            className="opacity-70 cursor-not-allowed"
+          />
+          <p className="text-sm text-muted-foreground">
+            Managed by Google Sign-In
+          </p>
+        </div>
+        
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email</FormLabel>
-                  <FormControl>
-                    <Input 
-                      placeholder="your@email.com" 
-                      {...field} 
-                      disabled 
-                      className="opacity-70 cursor-not-allowed"
-                    />
-                  </FormControl>
-                  <p className="text-sm text-muted-foreground">
-                    Managed by Google Sign-In
-                  </p>
-                </FormItem>
-              )}
-            />
-
             <FormField
               control={form.control}
               name="phone"
@@ -121,7 +161,7 @@ export default function AccountPage() {
             />
 
             <div className="flex justify-end">
-              <Button 
+              <Button
                 type="submit"
                 disabled={form.formState.isSubmitting}
               >

@@ -1,5 +1,11 @@
 from email_service.sendgrid_client import EmailService
 from email_service.config import EmailConfig
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail
+import logging
+
+# Configure logger
+logger = logging.getLogger(__name__)
 
 def format_amount(amount, currency='sgd'):
     """Format currency amount for display"""
@@ -22,52 +28,26 @@ class RefundNotifications:
 
     @staticmethod
     def send_refund_initiated(customer_email, refund_data):
-        """
-        Send notification that a refund has been initiated
-
-        Args:
-            customer_email (str): Customer's email address
-            refund_data (dict): Data about the refund
-                - payment_intent_id: Payment Intent ID
-                - amount: Amount being refunded
-                - currency: Currency code (e.g., 'sgd')
-
-        Returns:
-            dict: Response with status and message
-        """
-        # Check if we should use template or plain text
-        if EmailConfig.TEMPLATE_REFUND_INITIATED:
-            # Use template
-            template_data = {
-                "payment_intent_id": refund_data.get("payment_intent_id"),
-                "refund_amount": format_amount(refund_data.get("amount"), refund_data.get("currency", "sgd"))
-            }
-
-            return EmailService.send_email(
-                customer_email,
-                "Your Refund Has Been Initiated",
-                template_id=EmailConfig.TEMPLATE_REFUND_INITIATED,
-                template_data=template_data
+        try:
+            sg = SendGridAPIClient(EmailConfig.SENDGRID_API_KEY)
+            message = Mail(
+                from_email=EmailConfig.EMAIL_FROM_ADDRESS,
+                to_emails=customer_email,
+                subject='Your Refund Has Been Initiated',
+                html_content=f"""
+                    <h2>Refund Initiated</h2>
+                    <p>Your refund of ${refund_data['amount']/100:.2f} has been initiated.</p>
+                    <p>Payment ID: {refund_data['payment_intent_id']}</p>
+                """
             )
-        else:
-            # Use plain text
-            content = f"""
-Dear Customer,
-
-We have received your refund request and it is now being processed.
-
-Refund details:
-- Payment Intent ID: {refund_data.get("payment_intent_id")}
-- Amount: {format_amount(refund_data.get("amount"), refund_data.get("currency", "sgd"))}
-
-We will notify you once the refund has been completed. Please allow 5-10 business days for the funds to appear in your account.
-
-Thank you,
-ByteMe Store Team
-            """
-
-            return EmailService.send_email(
-                customer_email,
-                "Your Refund Has Been Initiated",
-                content=content
-            )
+            
+            response = sg.send(message)
+            logger.warning(f"SendGrid Response Code: {response.status_code}")
+            if response.status_code >= 300:
+                logger.error(f"SendGrid Error: {response.body}")
+                raise Exception(f"SendGrid error: {response.status_code}")
+            return True
+                
+        except Exception as e:
+            logger.error(f"Failed to send refund email: {str(e)}")
+            raise

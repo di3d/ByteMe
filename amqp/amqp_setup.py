@@ -7,14 +7,15 @@ import logging
 # sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../stripe')))
 # from amqp.config import Config
 from config import Config
+import time
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger(__name__)
 
 # Connection settings
 # Force RabbitMQ to use IPv4 explicitly
-amqp_host = '127.0.0.1'  # Override any other configuration to ensure IPv4 usage
+amqp_host = 'rabbitmq'  # Updated to use the Docker service name
 amqp_port = Config.RABBITMQ_PORT or 5672
 amqp_user = Config.RABBITMQ_USER or 'guest'
 amqp_password = Config.RABBITMQ_PASSWORD or 'guest'
@@ -29,19 +30,28 @@ EXCHANGES = {
 """
 This function creates a channel (connection) and establishes connection with AMQP server
 """
-def get_rabbitmq_connection():
-    try:
-        connection = pika.BlockingConnection(
-            pika.ConnectionParameters(
-                host=amqp_host,
-                port=amqp_port,
-                heartbeat=3600,
-                blocked_connection_timeout=3600,  # these parameters to prolong the expiration time (in seconds) of the connection
-            ))
-        return connection
-    except Exception as e:
-        logger.error(f"Failed to connect to RabbitMQ: {str(e)}")
-        return None
+def get_rabbitmq_connection(max_retries=10, retry_delay=5):
+    retries = 0
+    while retries < max_retries:
+        try:
+            connection = pika.BlockingConnection(
+                pika.ConnectionParameters(
+                    host=amqp_host,
+                    port=amqp_port,
+                    heartbeat=3600,
+                    blocked_connection_timeout=3600,
+                ))
+            logger.info(f"Successfully connected to RabbitMQ after {retries} retries")
+            return connection
+        except Exception as e:
+            retries += 1
+            logger.error(f"Failed to connect to RabbitMQ (attempt {retries}/{max_retries}): {str(e)}")
+            if retries < max_retries:
+                logger.info(f"Retrying in {retry_delay} seconds...")
+                time.sleep(retry_delay)
+    
+    logger.error(f"Failed to connect to RabbitMQ after {max_retries} attempts")
+    return None
     
     
 def create_channel():
@@ -140,3 +150,37 @@ def check_setup():
 
 # Initialize when module is imported
 setup_all_queues()
+
+if __name__ == "__main__":
+    # Run the setup
+    if setup_all_queues():
+        logger.info("AMQP setup completed successfully. Keeping service alive...")
+        
+        # Keep the process running
+        import signal
+        import sys
+        
+        # Signal handler for graceful shutdown
+        def signal_handler(sig, frame):
+            logger.info("Received shutdown signal, exiting...")
+            sys.exit(0)
+        
+        # Register signal handlers
+        signal.signal(signal.SIGINT, signal_handler)
+        signal.signal(signal.SIGTERM, signal_handler)
+        
+        # Keep the container running
+        try:
+            while True:
+                import time
+                time.sleep(60)
+                # Optionally check if RabbitMQ is still available
+                if check_setup():
+                    logger.info("Health check: RabbitMQ connection successful")
+                else:
+                    logger.warning("Health check: RabbitMQ connection failed")
+        except KeyboardInterrupt:
+            logger.info("Process interrupted")
+    else:
+        logger.error("AMQP setup failed")
+        sys.exit(1)

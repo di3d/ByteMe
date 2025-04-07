@@ -89,7 +89,7 @@ def get_delivery(delivery_id):
         
         cursor.execute("""
             SELECT delivery_id, order_id, customer_id, parts_list, 
-                   created_at, updated_at
+                created_at, updated_at
             FROM deliveries 
             WHERE delivery_id = %s
         """, (delivery_id,))

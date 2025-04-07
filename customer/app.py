@@ -50,6 +50,50 @@ def get_db_connection():
     conn = psycopg2.connect(**DB_PARAMS)
     return conn
 
+@app.route("/customers", methods=['GET'])
+def get_all_customers():
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT customer_id, name, address, email 
+            FROM customers 
+            ORDER BY customer_id
+        """)
+        customers_data = cursor.fetchall()
+        
+        cursor.close()
+        conn.close()
+        
+        if customers_data:
+            customers = []
+            for customer in customers_data:
+                customers.append({
+                    "customer_id": customer[0],
+                    "name": customer[1],
+                    "address": customer[2],
+                    "email": customer[3]
+                })
+            
+            return jsonify({
+                "code": 200,
+                "data": customers
+            }), 200
+        else:
+            return jsonify({
+                "code": 200,
+                "data": [],
+                "message": "No customers found"
+            }), 200
+            
+    except Exception as e:
+        return jsonify({
+            "code": 500,
+            "message": str(e)
+        }), 500
+        
+
 @app.route("/customer/<string:customer_id>", methods=['GET'])
 def get_customer(customer_id):
     try:
@@ -107,12 +151,37 @@ def create_customer():
         cursor = conn.cursor()
         cursor.execute("SELECT customer_id FROM customers WHERE customer_id = %s", (data["customer_id"],))
         if cursor.fetchone():
+            # Update existing customer
+            cursor.execute(
+                """
+                UPDATE customers 
+                SET name = %s, address = %s, email = %s
+                WHERE customer_id = %s
+                RETURNING customer_id, name, address, email
+                """,
+                (
+                    data["name"],
+                    data["address"],
+                    data["email"],
+                    data["customer_id"]
+                )
+            )
+            
+            updated_customer = cursor.fetchone()
+            conn.commit()
             cursor.close()
             conn.close()
+            
             return jsonify({
-                "code": 409,
-                "message": "Customer ID already exists"
-            }), 409
+                "code": 200,
+                "message": "Customer updated successfully",
+                "data": {
+                    "customer_id": updated_customer[0],
+                    "name": updated_customer[1],
+                    "address": updated_customer[2],
+                    "email": updated_customer[3]
+                }
+            }), 200
         
         # Create new customer
         cursor.execute(

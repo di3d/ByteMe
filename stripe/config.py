@@ -14,7 +14,7 @@ class Config:
     DEFAULT_CANCEL_URL = os.getenv('DEFAULT_CANCEL_URL', 'http://localhost:3000/checkout?canceled=true')
 
     # RabbitMQ settings
-    RABBITMQ_HOST = os.getenv('RABBITMQ_HOST', '127.0.0.1')
+    RABBITMQ_HOST = os.getenv('RABBITMQ_HOST', 'amqp')  # Updated to use the Docker service name
     RABBITMQ_PORT = int(os.getenv('RABBITMQ_PORT', 5672))
     RABBITMQ_USER = os.getenv('RABBITMQ_USER', 'guest')
     RABBITMQ_PASSWORD = os.getenv('RABBITMQ_PASSWORD', 'guest')

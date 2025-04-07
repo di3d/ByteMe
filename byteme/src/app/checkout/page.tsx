@@ -23,14 +23,14 @@ const unsubscribe = onAuthStateChanged(auth, (user) => {
   }
 });
 
-const fetchUserRecommendations = async () => {
+const fetchUserRecommendations = async (setRecommendations: React.Dispatch<React.SetStateAction<PCBuild[]>>) => {
   if (!currentUserId) {
     console.error("User is not authenticated.");
     return;
   }
 
   try {
-    const apiUrl = process.env.NEXT_PUBLIC_RECOMMENDATIONS_API_URL || 'http://127.0.0.1:5004';
+    const apiUrl = process.env.NEXT_PUBLIC_RECOMMENDATIONS_API_URL || 'http://127.0.0.1:5000';
     const response = await fetch(`${apiUrl}/recommendation/customer/${currentUserId}`, {
       method: 'GET',
       headers: {
@@ -46,44 +46,73 @@ const fetchUserRecommendations = async () => {
 
     const data = await response.json();
     console.log("User recommendations:", data.data);
-    return data.data; // Return the recommendations list
+
+    // Transform API response to match expected structure
+    const transformedRecommendations = data.data.map((rec: any) => ({
+      id: rec.recommendation_id, // Map recommendation_id to id
+      name: rec.name,
+      items: Object.values(rec.parts_list), // Convert parts_list object to an array
+      cost: rec.cost,
+    }));
+
+    setRecommendations(transformedRecommendations); // Update the recommendations state
   } catch (error) {
     console.error("Failed to fetch recommendations:", error);
   }
+};
+
+const groupPartsByCategory = (partsList: Record<string, any>) => {
+  return Object.values(partsList).reduce((groups: Record<string, any[]>, part: any) => {
+    if (!groups[part.category]) {
+      groups[part.category] = [];
+    }
+    groups[part.category].push(part);
+    return groups;
+  }, {});
 };
 
 export default function Checkout() {
   const { user } = useAuth(); // Add useAuth hook at top
   const [selectedBuildId, setSelectedBuildId] = useState(samplePCBuilds[0].id);
   const [selectedBuild, setSelectedBuild] = useState<PCBuild>(samplePCBuilds[0]);
+  const [recommendations, setRecommendations] = useState<PCBuild[]>([]); // State for recommendations
+  const [groupedComponents, setGroupedComponents] = useState<Record<string, any[]>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [checkoutUrl, setCheckoutUrl] = useState('');
   const hasCreatedSession = useRef(false);
   
+  // Fetch recommendations on component mount
+  useEffect(() => {
+    fetchUserRecommendations(setRecommendations);
+  }, []);
+
   // Update the selected build when the dropdown changes
   useEffect(() => {
-    const build = getBuildById(selectedBuildId);
+    const build = recommendations.find((rec) => rec.id === selectedBuildId) || getBuildById(selectedBuildId);
     if (build) {
-      setSelectedBuild(build); // Remove orderId generation
-      // Reset checkout state when build changes
+      setSelectedBuild(build);
+
+      // Check if parts_list exists before grouping
+      if (build.parts_list) {
+        setGroupedComponents(groupPartsByCategory(build.parts_list)); // Group parts by category
+      } else {
+        console.warn("Selected build has no parts_list:", build);
+        setGroupedComponents({}); // Set to an empty object if parts_list is undefined
+      }
+
       setCheckoutUrl('');
       setError('');
       hasCreatedSession.current = false;
     }
-  }, [selectedBuildId]);
-
-  // Example usage of fetchUserRecommendations
-  useEffect(() => {
-    fetchUserRecommendations();
-  }, []);
+  }, [selectedBuildId, recommendations]);
 
   // Format amount for display
   const formatAmount = (amount: number) => {
     return new Intl.NumberFormat('en-SG', {
       style: 'currency',
       currency: 'SGD'
-    }).format(amount / 100);
+    }).format(amount);
   };
 
   // Create and initialize checkout session
@@ -143,15 +172,6 @@ export default function Checkout() {
     }
   };
 
-  // Group components by category for better display
-  const groupedComponents = selectedBuild.items.reduce((groups: Record<string, typeof selectedBuild.items>, item) => {
-    if (!groups[item.category]) {
-      groups[item.category] = [];
-    }
-    groups[item.category].push(item);
-    return groups;
-  }, {});
-
   const totalAmount = calculateBuildTotal(selectedBuild);
 
   return (
@@ -176,12 +196,20 @@ export default function Checkout() {
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  <SelectLabel>Available PC Builds</SelectLabel>
-                  {samplePCBuilds.map(build => (
-                    <SelectItem key={build.id} value={build.id}>
-                      {build.name} - {formatAmount(calculateBuildTotal(build))}
-                    </SelectItem>
-                  ))}
+                  <SelectLabel>Recommended Builds</SelectLabel>
+                  {recommendations.map((build) => {
+                    // Validate the structure of the build object
+                    if (!build || !build.cost || !build.name) {
+                      console.error("Invalid build structure:", build);
+                      return null; // Skip invalid builds
+                    }
+
+                    return (
+                      <SelectItem key={build.id} value={build.id}>
+                        {build.name} - {formatAmount(build.cost)} {/* Use cost directly */}
+                      </SelectItem>
+                    );
+                  })}
                 </SelectGroup>
               </SelectContent>
             </Select>
@@ -192,21 +220,18 @@ export default function Checkout() {
         <Card>
           <CardHeader>
             <CardTitle>{selectedBuild.name}</CardTitle>
-            <CardDescription>{selectedBuild.description}</CardDescription>
+            <CardDescription>{selectedBuild.description || "Detailed configuration of your selected build."}</CardDescription>
           </CardHeader>
           <CardContent>
             <ScrollArea className="h-[300px] pr-4">
-              {Object.keys(groupedComponents).map(category => (
+              {Object.keys(groupedComponents).map((category) => (
                 <div key={category} className="mb-6">
                   <h3 className="font-medium text-lg mb-2">{category}</h3>
                   <ul className="space-y-2">
-                    {groupedComponents[category].map(item => (
+                    {groupedComponents[category].map((item) => (
                       <li key={item.id} className="flex justify-between items-center border-b pb-2">
                         <div>
                           <p className="font-medium">{item.name}</p>
-                          {item.description && (
-                            <p className="text-sm text-gray-500">{item.description}</p>
-                          )}
                         </div>
                         <span className="font-medium">{formatAmount(item.price)}</span>
                       </li>

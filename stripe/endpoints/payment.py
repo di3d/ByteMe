@@ -22,7 +22,6 @@ def get_payment_intent(payment_intent_id):
     - amount: Amount in cents
     - currency: Currency code
     - status: Payment status
-    - metadata: Payment metadata
     """
     try:
         payment_intent = stripe.PaymentIntent.retrieve(payment_intent_id)
@@ -31,8 +30,7 @@ def get_payment_intent(payment_intent_id):
             'id': payment_intent.id,
             'amount': payment_intent.amount,
             'currency': payment_intent.currency,
-            'status': payment_intent.status,
-            'metadata': payment_intent.metadata
+            'status': payment_intent.status
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 400

@@ -38,7 +38,7 @@ const navLinks = [
     title: "Support",
     href: "/support",
     submenu: [
-      { title: "Refund", href: "/refund" } // This is correctly set up already
+      { title: "Refund", href: "/orders" } // This is correctly set up already
     ],
   },
   {
