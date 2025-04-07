@@ -106,8 +106,8 @@ const groupPartsByCategory = (partsList: any[]) => {
 
 export default function Checkout() {
   const { user } = useAuth(); // Add useAuth hook at top
-  const [selectedBuildId, setSelectedBuildId] = useState(samplePCBuilds[0].id);
-  const [selectedBuild, setSelectedBuild] = useState<PCBuild>(samplePCBuilds[0]);
+  const [selectedBuildId, setSelectedBuildId] = useState<string | null>(null); // No default build selected
+  const [selectedBuild, setSelectedBuild] = useState<PCBuild | null>(null); // No default build selected
   const [recommendations, setRecommendations] = useState<PCBuild[]>([]); // State for recommendations
   const [groupedComponents, setGroupedComponents] = useState<Record<string, any[]>>({});
   const [loading, setLoading] = useState(false);
@@ -120,22 +120,26 @@ export default function Checkout() {
     fetchUserRecommendations(setRecommendations);
   }, []);
 
-  // Update the selected build when the dropdown changes
   useEffect(() => {
-    const build = recommendations.find((rec) => rec.id === selectedBuildId) || getBuildById(selectedBuildId);
-    if (build) {
-      setSelectedBuild(build);
+    if (selectedBuildId) {
+      const build = recommendations.find((rec) => rec.id === selectedBuildId) || getBuildById(selectedBuildId);
+      if (build) {
+        setSelectedBuild(build);
 
-      if (build.items && build.items.length > 0) {
-        setGroupedComponents(groupPartsByCategory(build.items)); // Group parts by category using items
-      } else {
-        console.warn("Selected build has no items:", build);
-        setGroupedComponents({}); // Set to an empty object if items are undefined or empty
+        if (build.items && build.items.length > 0) {
+          setGroupedComponents(groupPartsByCategory(build.items)); // Group parts by category using items
+        } else {
+          console.warn("Selected build has no items:", build);
+          setGroupedComponents({}); // Set to an empty object if items are undefined or empty
+        }
+
+        setCheckoutUrl('');
+        setError('');
+        hasCreatedSession.current = false;
       }
-
-      setCheckoutUrl('');
-      setError('');
-      hasCreatedSession.current = false;
+    } else {
+      setSelectedBuild(null); // Clear selected build if no build is selected
+      setGroupedComponents({});
     }
   }, [selectedBuildId, recommendations]);
 
@@ -149,54 +153,51 @@ export default function Checkout() {
 
   // Create and initialize checkout session
   const initializeCheckout = async () => {
+    if (!selectedBuild || !user || !user.uid) {
+      setError("Please select a build and ensure you are logged in.");
+      return;
+    }
+  
     setLoading(true);
     hasCreatedSession.current = true;
-    
-    const totalAmount = calculateBuildTotal(selectedBuild);
-    const stripeApiUrl = process.env.NEXT_PUBLIC_STRIPE_API_URL || 'http://127.0.0.1:5000';
-
+  
+    const apiUrl = "http://localhost:5008/initial_purchase";
+  
     try {
-      const response = await fetch(`${stripeApiUrl}/create-checkout-session`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      console.log("Selected Build:", selectedBuild);
+      console.log("User object:", user);
+  
+      const response = await fetch(apiUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          amount: totalAmount,
-          customer_email: user?.email,
-          currency: 'sgd',
-          product_name: selectedBuild.name,
-          metadata: {
-            build_name: selectedBuild.name
-          },
-          success_url: `${window.location.origin}/success?session_id={CHECKOUT_SESSION_ID}`,
-          cancel_url: `${window.location.origin}/checkout?canceled=true`
-        })
+          recommendation_id: selectedBuild.id,
+          customer_id: user.uid, // Ensure this is the correct field
+        }),
       });
-      
+  
       const data = await response.json();
-      
-      if (data.error) {
-        console.error("Error from server:", data.error);
-        setError(data.error);
+  
+      if (data.code !== 200) {
+        console.error("Error from server:", data.message);
+        setError(data.message || "Failed to initialize checkout.");
         setLoading(false);
         return;
       }
-
-      if (!data.url) {
-        console.error("No checkout URL received from the server");
-        setError('No checkout URL received from the server');
-        setLoading(false);
-        return;
-      }
-      
-      console.log("Checkout session created, URL:", data.url);
-      setCheckoutUrl(data.url);
+  
+      const { session_id, checkout_url } = data.data;
+  
+      console.log("Checkout session created:", { session_id, checkout_url });
+      setCheckoutUrl(checkout_url); // Set the checkout URL for redirection
+  
       setLoading(false);
     } catch (error: any) {
-      console.error('Error during session creation:', error);
-      setError('Checkout initialization failed: ' + error.message);
+      console.error("Error during checkout initialization:", error);
+      setError("Checkout initialization failed: " + error.message);
       setLoading(false);
     }
   };
+  
 
   const redirectToCheckout = () => {
     if (checkoutUrl) {
@@ -204,7 +205,7 @@ export default function Checkout() {
     }
   };
 
-  const totalAmount = calculateBuildTotal(selectedBuild);
+  const totalAmount = selectedBuild ? calculateBuildTotal(selectedBuild) : 0;
 
   return (
     <div className="container mx-auto py-10 px-4 max-w-4xl">
@@ -251,43 +252,55 @@ export default function Checkout() {
         {/* Build Details */}
         <Card>
           <CardHeader>
-            <CardTitle>{selectedBuild.name}</CardTitle>
-            <CardDescription>{selectedBuild.description || "Detailed configuration of your selected build."}</CardDescription>
+            <CardTitle>{selectedBuild ? selectedBuild.name : "Select a build to checkout"}</CardTitle>
+            <CardDescription>
+              {selectedBuild
+                ? selectedBuild.description || "Detailed configuration of your selected build."
+                : "Please select a build from the dropdown above to view its details."}
+          </CardDescription>
           </CardHeader>
           <CardContent>
-            <ScrollArea className="h-[300px] pr-4">
-              {Object.keys(groupedComponents).map((category) => (
-                <div key={category} className="mb-6">
-                  <h3 className="font-medium text-lg mb-2">{category}</h3>
-                  <ul className="space-y-2">
-                    {groupedComponents[category].map((item) => (
-                      <li key={item.id} className="flex justify-between items-center border-b pb-2">
-                        <div className="flex items-center space-x-4">
-                          {item.imageUrl && (
-                            <img
-                              src={item.imageUrl}
-                              alt={item.name || "Part Image"}
-                              className="w-12 h-12 object-cover rounded-md"
-                            />
-                          )}
-                          <p className="font-medium">{item.name || "Unnamed Part"}</p>
-                        </div>
-                        <span className="font-medium">
-                          {item.price ? formatAmount(item.price) : "Price Unavailable"}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </ScrollArea>
+            {selectedBuild && selectedBuild.items && selectedBuild.items.length > 0 ? (
+              <ScrollArea className="h-[300px] pr-4">
+                {Object.keys(groupedComponents).map((category) => (
+                  <div key={category} className="mb-6">
+                    <h3 className="font-medium text-lg mb-2">{category}</h3>
+                    <ul className="space-y-2">
+                      {groupedComponents[category].map((item) => (
+                        <li key={item.id} className="flex justify-between items-center border-b pb-2">
+                          <div className="flex items-center space-x-4">
+                            {item.imageUrl && (
+                              <img
+                                src={item.imageUrl}
+                                alt={item.name || "Part Image"}
+                                className="w-12 h-12 object-cover rounded-md"
+                              />
+                            )}
+                            <p className="font-medium">{item.name || "Unnamed Part"}</p>
+                          </div>
+                          <span className="font-medium">
+                            {item.price ? formatAmount(item.price) : "Price Unavailable"}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </ScrollArea>
+            ) : (
+              <div className="text-center text-gray-500">
+                Select a build to checkout
+              </div>
+            )}
           </CardContent>
-          <CardFooter className="flex justify-between border-t pt-4">
-            <div>
-              <p className="font-bold text-lg">Total</p>
-            </div>
-            <p className="font-bold text-lg">{formatAmount(totalAmount)}</p>
-          </CardFooter>
+          {selectedBuild && (
+            <CardFooter className="flex justify-between border-t pt-4">
+              <div>
+                <p className="font-bold text-lg">Total</p>
+              </div>
+              <p className="font-bold text-lg">{formatAmount(totalAmount)}</p>
+            </CardFooter>
+          )}
         </Card>
 
         {/* Checkout Actions */}
