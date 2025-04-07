@@ -34,7 +34,6 @@ CREATE TABLE IF NOT EXISTS deliveries (
     delivery_id VARCHAR(255) PRIMARY KEY,
     order_id VARCHAR(255) NOT NULL,
     customer_id VARCHAR(255) NOT NULL,
-    parts_list JSONB NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

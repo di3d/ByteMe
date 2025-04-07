@@ -242,9 +242,9 @@ def get_all_recommendations():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Query to get all recommendations for the given customer_id
+        # Query to get all recommendations
         cursor.execute("""
-            SELECT *
+            SELECT recommendation_id, customer_id, name, parts_list, cost, timestamp
             FROM recommendations
         """)
         recommendations = cursor.fetchall()
@@ -253,12 +253,18 @@ def get_all_recommendations():
         conn.close()
 
         if recommendations:
-            recommendations_list = []
-            for rec in recommendations:
-                recommendations_list.append(rec)
-            
-        
-
+            # Format the response data
+            recommendations_list = [
+                {
+                    "recommendation_id": rec[0],
+                    "customer_id": rec[1],
+                    "name": rec[2],
+                    "parts_list": json.loads(rec[3]) if isinstance(rec[3], str) else rec[3],  # Handle parts_list as a list
+                    "cost": float(rec[4]),
+                    "timestamp": rec[5].isoformat()
+                }
+                for rec in recommendations
+            ]
             return jsonify({
                 "code": 200,
                 "data": recommendations_list
