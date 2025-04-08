@@ -141,6 +141,7 @@ services:
       - DB_PASSWORD=esduser
 
   stripe:
+    container_name: stripe
     build:
       context: ./stripe
     env_file:
@@ -186,6 +187,7 @@ services:
     restart: unless-stopped
 
   email_service:
+    container_name: email_service
     build:
       context: .
       dockerfile: email_service/Dockerfile
@@ -202,6 +204,26 @@ services:
       - ./amqp:/app/amqp
     depends_on:
       - rabbitmq
+
+  # Make Purchase microservice
+  make_purchase:
+    container_name: make_purchase
+    build:
+      context: ./make_purchase # Path to the Make Purchase service's Dockerfile
+      dockerfile: Dockerfile # Specify the Dockerfile to use
+    ports:
+      - "5008:5008" # Map port 5008 for the Make Purchase service
+    environment:
+      - FLASK_APP=makePurchase.py  # <-- or whatever your main Python file is
+      - FLASK_ENV=development # Set Flask environment to development
+      - RUNNING_IN_DOCKER=true
+    depends_on:
+      - stripe
+      - customer  # Add dependency on customer service
+      - order     # Add dependency on order service
+      - delivery  # Add dependency on delivery service
+      - recommendation # Add dependency on recommendation service
+    restart: unless-stopped
 
   
   # # Make Purchase microservice

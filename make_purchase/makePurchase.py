@@ -13,27 +13,17 @@ import requests
 from os import environ
 import json
 
-
 app = Flask(__name__)
 CORS(app)
 
-# RabbitMQ connection details (use the same as in `amqp_setup.py`)
-rabbit_host = "localhost"
-rabbit_port = 5673
-exchange_name = "order_topic"
-
-# Connect to RabbitMQ
-connection = pika.BlockingConnection(pika.ConnectionParameters(host=rabbit_host, port=rabbit_port))
-channel = connection.channel()
-
 # Set default values for environment variables
-environ.setdefault("customerURL", "http://localhost:5001/customer")
-environ.setdefault("recommendationURL", "http://localhost:5009/cart")
+environ.setdefault("customerURL", "http://customer:5001/customer")
+environ.setdefault("recommendationURL", "http://cart:5009/cart")
 environ.setdefault("partpostURL", "https://personal-0careuf6.outsystemscloud.com/ByteMeComponentService/rest/ComponentAPI/AddComponent")
 environ.setdefault("partgetURL", "https://personal-0careuf6.outsystemscloud.com/ByteMeComponentService/rest/ComponentAPI/GetComponentById")
-environ.setdefault("orderURL", "http://localhost:5002/")
-environ.setdefault("deliveryURL", "http://localhost:5003/")
-environ.setdefault("stripeURL", "http://localhost:5000/")
+environ.setdefault("orderURL", "http://order:5002/")
+environ.setdefault("deliveryURL", "http://delivery:5003/")
+environ.setdefault("stripeURL", "http://stripe:5000/")
 
 
 # Relevant REST APIs (microservices)
@@ -43,17 +33,6 @@ partgetURL = environ.get("partgetURL")
 partpostURL = environ.get("partpostURL")
 deliveryURL = environ.get("deliveryURL")
 stripeURL = environ.get("stripeURL")
-
-
-def send_amqp_message(exchange_name, routing_key, message):
-    channel.basic_publish(
-        exchange=exchange_name,
-        routing_key=routing_key,  # Should match a binding key in `amqp_setup.py`
-        body=json.dumps(message),
-        properties=pika.BasicProperties(    
-            delivery_mode=2,  # Makes the message persistent
-        )
-    )
 
 
 @app.route("/initial_purchase", methods=['POST'])
@@ -95,6 +74,7 @@ def make_purchase():
 
     recommendation = invoke_http(full_url, method="GET")
 
+    print(recommendation)
     if recommendation.get("code") != 200:
         return jsonify (
             {
@@ -151,7 +131,7 @@ def make_purchase():
         return jsonify (
             {
                 "code":404,
-                "message": "Recommendation not found"
+                "message": "Customer not found"
             }
         ), 404
         
