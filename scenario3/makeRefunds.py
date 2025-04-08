@@ -84,12 +84,17 @@ def initiate_refund():
         logger.info(f"3️⃣ Verifying payment intent: {payment_intent_id}")
         payment_intent_response = invoke_http(f"{STRIPE_URL}/payment-intent/{payment_intent_id}", method="GET")
         
-        if payment_intent_response.get("code", 200) >= 400:
-            logger.error(f"Failed to retrieve payment intent: {payment_intent_response}")
-            return jsonify({"success": False, "error": payment_intent_response.get("message", "Unknown error")}), payment_intent_response.get("code", 500)
-
-        # Extract payment amount
-        payment_amount = payment_intent_response.get("data", {}).get("amount", 0)
+        logger.info(f"Payment intent response: {payment_intent_response}")
+        
+        # Check if response has a data wrapper or is a direct response
+        if "data" in payment_intent_response and isinstance(payment_intent_response["data"], dict):
+            # Response format: {"data": {"amount": 5000000, ...}}
+            payment_amount = payment_intent_response.get("data", {}).get("amount", 0)
+        else:
+            # Direct response format: {"amount": 5000000, ...}
+            payment_amount = payment_intent_response.get("amount", 0)
+        
+        logger.info(f"Extracted payment amount: {payment_amount}")
         
         # Step 4: Initiate refund via Stripe
         logger.info(f"4️⃣ Initiating refund for payment: {payment_intent_id}")
