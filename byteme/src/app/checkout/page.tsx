@@ -11,27 +11,17 @@ import { useAuth } from '@/lib/auth-context'; // Add useAuth hook at top
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 
-// Variable to store the user's UID
-let currentUserId : string | null = null;
-
-// Set up the auth state observer
-const unsubscribe = onAuthStateChanged(auth, (user) => {
-  if (user) {
-    currentUserId = user.uid; // Store the UID in the variable
-  } else {
-    currentUserId = null; // Clear the variable if user signs out
-  }
-});
-
-const fetchUserRecommendations = async (setRecommendations: React.Dispatch<React.SetStateAction<PCBuild[]>>) => {
-  if (!currentUserId) {
+const fetchUserRecommendations = async (
+  userId: string,
+  setRecommendations: React.Dispatch<React.SetStateAction<PCBuild[]>>
+) => {
+  if (!userId) {
     console.error("User is not authenticated.");
     return;
   }
 
   try {
-    //const apiUrl = process.env.NEXT_PUBLIC_RECOMMENDATIONS_API_URL || 'http://localhost:8000';
-    const response = await fetch(`http://localhost:8000/cart/customer/${currentUserId}`, {
+    const response = await fetch(`http://localhost:8000/cart/customer/${userId}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -47,7 +37,6 @@ const fetchUserRecommendations = async (setRecommendations: React.Dispatch<React
     const data = await response.json();
     console.log("User recommendations:", data.data);
 
-    // Fetch full part objects for each recommendation
     const transformedRecommendations = await Promise.all(
       data.data.map(async (rec: any) => {
         const partsList = await Promise.all(
@@ -58,40 +47,41 @@ const fetchUserRecommendations = async (setRecommendations: React.Dispatch<React
 
             if (!partResponse.ok) {
               console.error(`Failed to fetch part with ID ${partId}`);
-              return null; // Skip this part if the fetch fails
+              return null;
             }
 
             const part = await partResponse.json();
 
-            // Map the retrieved part to the expected structure
             return {
-              id: part.Id, // Map "Id" to "id"
-              name: part.Name, // Map "Name" to "name"
-              price: part.Price, // Map "Price" to "price"
-              stock: part.Stock, // Include "Stock" if needed
-              imageUrl: part.ImageUrl, // Include "ImageUrl" for display
-              categoryId: part.CategoryId, // Include "CategoryId" for grouping
+              id: part.Id,
+              name: part.Name,
+              price: part.Price,
+              stock: part.Stock,
+              imageUrl: part.ImageUrl,
+              categoryId: part.CategoryId,
             };
           })
         );
 
-        // Filter out any null parts (failed fetches)
         const validPartsList = partsList.filter((part) => part !== null);
 
         return {
-          id: rec.cart_id, // Map recommendation_id to id
+          id: rec.cart_id,
           name: rec.name,
-          items: validPartsList, // Use the fetched part objects
+          items: validPartsList,
           cost: rec.total_cost,
         };
       })
     );
 
-    setRecommendations(transformedRecommendations); // Update the recommendations state
+    setRecommendations(transformedRecommendations);
   } catch (error) {
     console.error("Failed to fetch recommendations:", error);
   }
 };
+
+
+
 
 const groupPartsByCategory = (partsList: any[]) => {
   return partsList.reduce((groups: Record<string, any[]>, part: any) => {
@@ -117,8 +107,10 @@ export default function Checkout() {
   
   // Fetch recommendations on component mount
   useEffect(() => {
-    fetchUserRecommendations(setRecommendations);
-  }, []);
+    if (user && user.uid) {
+      fetchUserRecommendations(user.uid, setRecommendations);
+    }
+  }, [user]);
 
   useEffect(() => {
     if (selectedBuildId) {
