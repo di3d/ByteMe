@@ -46,6 +46,30 @@ def ensure_database_exists():
         print(f"Error ensuring database exists: {str(e)}")
         raise
 
+def ensure_carts_table_exists():
+    """Ensures that the carts table exists in the database."""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS carts (
+                cart_id UUID PRIMARY KEY,
+                customer_id VARCHAR(100) NOT NULL,
+                name VARCHAR(255) NOT NULL,
+                parts_list JSONB NOT NULL,
+                total_cost NUMERIC(10, 2) NOT NULL,
+                timestamp TIMESTAMP NOT NULL
+            )
+        """)
+        conn.commit()
+        cursor.close()
+        conn.close()
+        print("Checked for 'carts' table and created it if missing.")
+    except Exception as e:
+        print(f"Error ensuring carts table exists: {str(e)}")
+        raise
+
+
 def transform_parts_list(parts_list):
     """Transforms the parts_list into a list of 'Id' values."""
     if isinstance(parts_list, dict) and all("Id" in part for part in parts_list.values()):
@@ -235,9 +259,11 @@ def get_all_carts():
 
 if __name__ == '__main__':
     try:
-        ensure_database_exists()  # Make sure the database exists before running
+        ensure_database_exists()
+        ensure_carts_table_exists()  # <-- Add this
     except Exception as e:
-        print(f"Failed to initialize database: {str(e)}")
+        print(f"Failed to initialize database or table: {str(e)}")
         exit(1)
 
     app.run(host='0.0.0.0', port=5004, debug=True)
+
