@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { DateTime } from 'luxon';
 
 interface Order {
     order_id: string;
@@ -45,24 +48,63 @@ const MyOrdersPage = () => {
         fetchOrders();
     }, []);
 
-    const calculateTotal = (partsList: any[]) => {
-        return partsList.reduce((total, part) => total + (part.price || 0), 0);
+
+// Simplified formatDateTime function for Singapore time
+
+const formatDateTime = (timestamp: string) => {
+    try {
+        // Parse the timestamp in UTC
+        const dt = DateTime.fromISO(timestamp, { zone: 'utc' });
+        
+        // Convert to Singapore time
+        const sgt = dt.setZone('Asia/Singapore');
+        
+        // Debug
+        console.log({
+            originalTimestamp: timestamp,
+            luxonUTC: dt.toString(),
+            luxonSGT: sgt.toString(),
+        });
+        
+        return {
+            date: sgt.toFormat('LLL d, yyyy'),
+            time: sgt.toFormat('h:mm a') + ' (SGT)'
+        };
+    } catch (error) {
+        console.error("Error formatting date:", error);
+        return { date: "Error", time: "Error" };
+    }
+};
+
+    // Function to get status badge color for dark theme
+    const getStatusColor = (status: string) => {
+        switch (status.toLowerCase()) {
+            case 'completed':
+                return 'bg-green-900 text-green-300';
+            case 'refunded':
+                return 'bg-red-900 text-red-300';
+            case 'pending':
+                return 'bg-yellow-900 text-yellow-300';
+            case 'processing':
+                return 'bg-blue-900 text-blue-300';
+            default:
+                return 'bg-gray-800 text-gray-300';
+        }
     };
 
     if (loading) {
         return (
-            <div className="p-4">
+            <div className="p-4 text-white">
                 <p>Loading your orders...</p>
-                {/* Consider adding a loading spinner here */}
             </div>
         );
     }
 
     if (error) {
         return (
-            <div className="p-4 text-red-500">
+            <div className="p-4 text-red-400">
                 <p>Error: {error}</p>
-                <button onClick={fetchOrders} className="mt-2 p-2 bg-blue-500 text-white rounded">
+                <button onClick={fetchOrders} className="mt-2 p-2 bg-blue-600 text-white rounded">
                     Retry
                 </button>
             </div>
@@ -70,45 +112,73 @@ const MyOrdersPage = () => {
     }
 
     return (
-        <div className="p-4">
-            <h1 className="text-2xl font-bold mb-4">My Orders</h1>
+        <div className="p-4 max-w-4xl mx-auto">
+            <h1 className="text-2xl font-bold mb-6 text-white">My Orders</h1>
+            
             {orders.length === 0 ? (
-                <p>You have no orders yet.</p>
+                <div className="text-center p-8 bg-gray-800 rounded-lg border border-gray-700">
+                    <p className="text-gray-400">You have no orders yet.</p>
+                </div>
             ) : (
                 <div className="space-y-4">
-                    {orders.map((order) => (
-                        <div
-                            key={order.order_id}
-                            className="border rounded-lg p-4 bg-white shadow-sm hover:shadow-md transition-shadow"
-                        >
-                            <div className="flex justify-between items-center">
-                                <div>
-                                    <p><strong>Order ID:</strong> {order.order_id}</p>
-                                    <p><strong>Status:</strong> {order.status}</p>
-                                    <p><strong>Date:</strong> {new Date(order.timestamp).toLocaleDateString()}</p>
-                                    <p><strong>Total:</strong> ${calculateTotal(order.parts_list).toFixed(2)}</p>
-                                </div>
-                                <div className="flex space-x-2">
+                    {orders.map((order) => {
+                        const { date, time } = formatDateTime(order.timestamp);
+                        const statusClass = getStatusColor(order.status);
+                        
+                        return (
+                            <Card key={order.order_id} className="bg-gray-800 border-gray-700 hover:bg-gray-750 transition-colors">
+                                <CardContent className="p-6">
+                                    <div className="flex justify-between items-start">
+                                        <div className="space-y-1">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <h3 className="font-semibold text-white">Order #{order.order_id.slice(-8)}</h3>
+                                                <Badge className={`${statusClass}`}>
+                                                    {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                                                </Badge>
+                                            </div>
+                                            
+                                            <div className="text-sm text-gray-400 space-y-1">
+                                                <p className="font-mono text-xs text-gray-500 truncate max-w-xs">
+                                                    {order.order_id}
+                                                </p>
+                                                <p>
+                                                    <span className="inline-block w-16 font-medium text-gray-300">Date:</span> 
+                                                    {date}
+                                                </p>
+                                                <p>
+                                                    <span className="inline-block w-16 font-medium text-gray-300">Time:</span> 
+                                                    {time}
+                                                </p>
+                                                <p>
+                                                    <span className="inline-block w-16 font-medium text-gray-300">Items:</span> 
+                                                    {order.parts_list.length} components
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                                
+                                <CardFooter className="flex justify-end gap-2 p-4 bg-gray-850 border-t border-gray-700">
                                     <button
                                         onClick={() => router.push(`/orderDetails?id=${order.order_id}`)}
-                                        className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                                        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
                                     >
                                         View Details
                                     </button>
-                                    {/* Conditionally render refund button based on order eligibility */}
-                                    {/* Example condition - you'd replace with actual refund eligibility logic */}
-                                    {new Date(order.timestamp) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) && (
+                                    
+                                    {new Date(order.timestamp) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) && 
+                                     order.status !== 'refunded' && (
                                         <button
-                                            onClick={() => router.push(`/refund/${order.order_id}`)}
-                                            className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+                                            onClick={() => router.push(`/refund?order_id=${order.order_id}`)}
+                                            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
                                         >
-                                            Refund
+                                            Request Refund
                                         </button>
                                     )}
-                                </div>
-                            </div>
-                        </div>
-                    ))}
+                                </CardFooter>
+                            </Card>
+                        );
+                    })}
                 </div>
             )}
         </div>
