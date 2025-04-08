@@ -22,6 +22,7 @@ const navLinks = [
     submenu: [
       { title: "My Account", href: "/account" },
       { title: "My Builds", href: "/mybuilds" },
+      { title: "My Cart", href: "/cart" },
     ],
   },
   {

@@ -9,6 +9,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "./ui/button";
+import { Auth } from "firebase/auth";
+import { useAuth } from "@/lib/auth-context";
+
 
 type PartDetail = {
   Id: number;
@@ -32,6 +35,7 @@ export default function BuildCard({
   showSaveButton: boolean;
 }) {
   const [parts, setParts] = useState<PartDetail[]>([]);
+  const {user} = useAuth();
 
   useEffect(() => {
     async function fetchParts() {
@@ -52,22 +56,39 @@ export default function BuildCard({
 
   const handleSave = async (): Promise<void> => {
     try {
-      console.log("Processing purchase...");
+      console.log("Processing add to cart...");
   
-      // Simulate an API call or real purchase logic
-      // const response = await fetch('/api/buy', { method: 'POST' });
-      // const result = await response.json();
+      // Sample data (you'll want to get this from state or props)
+      const payload = {
+        customer_id: user?.uid,
+        name: title,
+        parts_list: infoRows,
+        total_cost: totalPrice
+      };
   
-      // Show success
-      alert("Purchase successful!");
+      const response = await fetch("http://localhost:8000/cart", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
   
-      // Optional: Redirect or update app state
-      // router.push('/thank-you');
+      const result = await response.json();
+  
+      if (response.ok) {
+        alert("Added to cart successful!");
+        console.log("New cart:", result.data);
+      } else {
+        alert(`Error: ${result.message}`);
+        console.error(result);
+      }
     } catch (error) {
-      console.error("Purchase failed:", error);
-      alert("Something went wrong during the purchase.");
+      console.error("Add to cart failed:", error);
+      alert("Something went wrong during add to cart.");
     }
   };
+  
   
 
   return (

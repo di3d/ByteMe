@@ -125,6 +125,21 @@ services:
     #   postgres:
     #     condition: service_healthy
 
+  cart:
+    container_name: cart
+    build:
+      context: ./cart
+      dockerfile: Dockerfile
+    ports:
+      - "5009:5009"
+    environment:
+      - FLASK_APP=cart.py
+      - DB_HOST=postgres.yanservers.com # Update to the external PostgreSQL server hostname
+      - DB_PORT=5432       # Update to the external PostgreSQL server port
+      - DB_NAME=cart_db
+      - DB_USER=esduser
+      - DB_PASSWORD=esduser
+
   stripe:
     build:
       context: ./stripe

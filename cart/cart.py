@@ -2,7 +2,6 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 import psycopg2
 import os
-import json
 import uuid
 from datetime import datetime
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
@@ -56,7 +55,7 @@ def ensure_carts_table_exists():
                 cart_id UUID PRIMARY KEY,
                 customer_id VARCHAR(100) NOT NULL,
                 name VARCHAR(255) NOT NULL,
-                parts_list JSONB NOT NULL,
+                parts_list INTEGER[] NOT NULL, 
                 total_cost NUMERIC(10, 2) NOT NULL,
                 timestamp TIMESTAMP NOT NULL
             )
@@ -71,11 +70,15 @@ def ensure_carts_table_exists():
 
 
 def transform_parts_list(parts_list):
-    """Transforms the parts_list into a list of 'Id' values."""
-    if isinstance(parts_list, dict) and all("Id" in part for part in parts_list.values()):
-        return [part["Id"] for part in parts_list.values()]
+    """Ensures parts_list is an array of integers."""
+    if isinstance(parts_list, list):
+        if all(isinstance(part, int) for part in parts_list):  # Check that all parts are integers
+            print(parts_list)
+            return parts_list
+        else:
+            raise ValueError("All items in parts_list must be integers")
     else:
-        raise ValueError("parts_list must be an object where each value contains an 'Id' attribute")
+        raise ValueError("parts_list must be an array of integers")
 
 def execute_query(query, params):
     """Executes a database query and returns the results."""
@@ -107,7 +110,7 @@ def get_cart(cart_id):
                 "cart_id": cart[0],
                 "customer_id": cart[1],
                 "name": cart[2],
-                "parts_list": cart[3],  # List of parts as-is
+                "parts_list": cart[3],  # List of parts as an array
                 "total_cost": float(cart[4]),
                 "timestamp": cart[5].isoformat()
             }
@@ -132,6 +135,9 @@ def create_cart():
                     "code": 400, 
                     "message": f"Missing required field: {field}"
                 }), 400
+
+        # Log the incoming data for debugging
+        print("Received data:", data)
                 
         # Transform parts_list
         try:
@@ -159,14 +165,14 @@ def create_cart():
             """
             INSERT INTO carts (
                 cart_id, customer_id, name, parts_list, total_cost, timestamp
-            ) VALUES (%s, %s, %s, %s::jsonb, %s, %s)
+            ) VALUES (%s, %s, %s, %s, %s, %s)
             RETURNING *
             """,
             (
                 cart_id,
                 data["customer_id"],
                 data["name"],
-                json.dumps(transformed_parts_list),  # Store parts list as JSON
+                data["parts_list"],
                 data["total_cost"],
                 current_time
             )
@@ -184,8 +190,8 @@ def create_cart():
                 "cart_id": new_cart[0],
                 "customer_id": new_cart[1],
                 "name": new_cart[2],
-                "total_cost": float(new_cart[3]),
-                "parts_list": transformed_parts_list,  # Return the transformed parts list
+                "total_cost": new_cart[3],
+                "parts_list": transformed_parts_list,  # Return the parts list as an array
                 "timestamp": new_cart[5].isoformat()
             }
         }), 201
@@ -211,7 +217,7 @@ def get_carts_by_customer(customer_id):
                 "cart_id": cart[0],
                 "customer_id": cart[1],
                 "name": cart[2],
-                "parts_list": cart[3],  # Directly return parts list
+                "parts_list": cart[3],  # Return the parts list as an array
                 "total_cost": float(cart[4]),
                 "timestamp": cart[5].isoformat()
             }
@@ -241,7 +247,7 @@ def get_all_carts():
                 "cart_id": cart[0],
                 "customer_id": cart[1],
                 "name": cart[2],
-                "parts_list": cart[3],  # Directly return parts list
+                "parts_list": cart[3],  # Return the parts list as an array
                 "total_cost": float(cart[4]),
                 "timestamp": cart[5].isoformat()
             }
@@ -265,5 +271,4 @@ if __name__ == '__main__':
         print(f"Failed to initialize database or table: {str(e)}")
         exit(1)
 
-    app.run(host='0.0.0.0', port=5004, debug=True)
-
+    app.run(host='0.0.0.0', port=5009, debug=True)

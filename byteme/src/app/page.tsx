@@ -1,19 +1,7 @@
-import { AppSidebar } from "@/components/app-sidebar"
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb"
 import { Button } from "@/components/ui/button"
-import { Separator } from "@/components/ui/separator"
-import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from "@/components/ui/sidebar"
+import Link from "next/link"
+
+
 
 export default function Page() {
   return (
@@ -22,8 +10,8 @@ export default function Page() {
         <h1 className="text-5xl font-extrabold">Welcome to ByteMe</h1>
         <p className="text-lg mt-4">Your community-powered PC builder with real user recommendations</p>
         <div className="mt-8 flex justify-center gap-4">
-          <Button className="bg-white text-blue-500 hover:bg-gray-800 px-6 py-3 rounded-lg text-lg">Start Building</Button>
-          <Button className="bg-transparent border-2 border-white text-white hover:bg-white hover:text-blue-500 px-6 py-3 rounded-lg text-lg">Browse Builds</Button>
+          <Button className="bg-white text-blue-500 hover:bg-gray-800 px-6 py-3 rounded-lg text-lg"><Link href="/build"> Start Building</Link></Button>
+          <Button className="bg-transparent border-2 border-white text-white hover:bg-white hover:text-blue-500 px-6 py-3 rounded-lg text-lg"><Link href="/browse"> Browse Builds</Link></Button>
         </div>
       </div>
 
@@ -88,8 +76,8 @@ export default function Page() {
             Be part of something bigger - where every recommendation comes from experience.
           </p>
           <div className="mt-8 flex justify-center gap-4">
-            <Button className="bg-blue-500 text-white hover:bg-blue-600 px-6 py-3 rounded-lg text-lg">
-              See Popular Builds
+            <Button  className="bg-blue-500 text-white hover:bg-blue-600 px-6 py-3 rounded-lg text-lg" >
+              <Link href="/build"> See Popular Builds</Link>
             </Button>
             <Button className="bg-transparent border-2 border-white text-white hover:bg-white hover:text-blue-500 px-6 py-3 rounded-lg text-lg">
               Join Discussions

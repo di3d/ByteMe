@@ -30,8 +30,8 @@ const fetchUserRecommendations = async (setRecommendations: React.Dispatch<React
   }
 
   try {
-    const apiUrl = process.env.NEXT_PUBLIC_RECOMMENDATIONS_API_URL || 'http://localhost:8000';
-    const response = await fetch(`${apiUrl}/recommendation-route/recommendation/customer/${currentUserId}`, {
+    //const apiUrl = process.env.NEXT_PUBLIC_RECOMMENDATIONS_API_URL || 'http://localhost:8000';
+    const response = await fetch(`http://localhost:8000/cart/customer/${currentUserId}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -79,10 +79,10 @@ const fetchUserRecommendations = async (setRecommendations: React.Dispatch<React
         const validPartsList = partsList.filter((part) => part !== null);
 
         return {
-          id: rec.recommendation_id, // Map recommendation_id to id
+          id: rec.cart_id, // Map recommendation_id to id
           name: rec.name,
           items: validPartsList, // Use the fetched part objects
-          cost: rec.cost,
+          cost: rec.total_cost,
         };
       })
     );
@@ -216,7 +216,7 @@ export default function Checkout() {
         {/* Build Selection */}
         <Card>
           <CardHeader>
-            <CardTitle>Select Your PC Build</CardTitle>
+            <CardTitle>Select Your PC Build From Cart</CardTitle>
             <CardDescription>Choose from our pre-configured custom PC builds</CardDescription>
           </CardHeader>
           <CardContent>
@@ -229,7 +229,7 @@ export default function Checkout() {
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  <SelectLabel>Recommended Builds</SelectLabel>
+                  <SelectLabel>Select one PC from your cart!</SelectLabel>
                   {recommendations.map((build) => {
                     // Validate the structure of the build object
                     if (!build || !build.cost || !build.name) {
