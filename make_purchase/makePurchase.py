@@ -28,7 +28,7 @@ channel = connection.channel()
 
 # Set default values for environment variables
 environ.setdefault("customerURL", "http://localhost:5001/customer")
-environ.setdefault("recommendationURL", "http://localhost:5004/recommendation")
+environ.setdefault("recommendationURL", "http://localhost:5009/cart")
 environ.setdefault("partpostURL", "https://personal-0careuf6.outsystemscloud.com/ByteMeComponentService/rest/ComponentAPI/AddComponent")
 environ.setdefault("partgetURL", "https://personal-0careuf6.outsystemscloud.com/ByteMeComponentService/rest/ComponentAPI/GetComponentById")
 environ.setdefault("orderURL", "http://localhost:5002/")
@@ -65,7 +65,7 @@ def make_purchase():
     # - using request.get_json(); users need to pass in 2 vairables
     # - recommendation_id and customer_id
     data = request.get_json()
-    
+    print(data)
     required_fields = ["recommendation_id", "customer_id"]
     for field in required_fields:
         if field not in data:
