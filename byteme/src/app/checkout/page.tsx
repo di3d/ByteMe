@@ -178,11 +178,18 @@ export default function Checkout() {
       }
   
       const { session_id, checkout_url } = data.data;
-  
-      console.log("Checkout session created:", { session_id, checkout_url });
-      setCheckoutUrl(checkout_url); // Set the checkout URL for redirection
-  
-      setLoading(false);
+    
+    // Store checkout details in localStorage for the success page
+    localStorage.setItem('checkout_session_id', session_id);
+    localStorage.setItem('checkout_details', JSON.stringify({
+      customer_id: user.uid,
+      parts_list: selectedBuild.components || [] // Adjust based on your data structure
+    }));
+    
+    console.log("Checkout session created:", { session_id, checkout_url });
+    setCheckoutUrl(checkout_url);
+
+    setLoading(false);
     } catch (error: any) {
       console.error("Error during checkout initialization:", error);
       setError("Checkout initialization failed: " + error.message);
