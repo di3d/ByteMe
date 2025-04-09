@@ -22,27 +22,28 @@ ByteMe is a microservices-based application designed to handle various functiona
    - For **Linux**: [Docker Engine](https://docs.docker.com/engine/install/)
    - For **macOS/Windows**: [Docker Desktop](https://www.docker.com/products/docker-desktop/)
 4. Set up Firebase, Stripe and SendGrid credentials.
-   a. Firebase credentials go into .env file at root of directory
-   b. Stripe credentials go to root of /stripe folder, add default URLs and rabbitMQ details:
+   a. Firebase credentials go into root of /byteme folder (our frontend).
 
-   # Default URLs
+   b. Stripe credentials go into .env at root of /stripe folder, add default URLs and rabbitMQ details:
 
-   DEFAULT_SUCCESS_URL=http://localhost:3000/success
-   DEFAULT_CANCEL_URL=http://localhost:3000/checkout?canceled=true
+      # Default URLs
 
-   # RabbitMQ settings
+      DEFAULT_SUCCESS_URL=http://localhost:3000/success
+      DEFAULT_CANCEL_URL=http://localhost:3000/checkout?canceled=true
 
-   RABBITMQ_HOST=localhost
-   RABBITMQ_PORT=5672
-   RABBITMQ_USER=guest
-   RABBITMQ_PASSWORD=guest
+      # RabbitMQ settings
+
+      RABBITMQ_HOST=localhost
+      RABBITMQ_PORT=5672
+      RABBITMQ_USER=guest
+      RABBITMQ_PASSWORD=guest
 
    c. SendGrid credentials go to root of /email_service folder, add rabbitMQ details:
-   EMAIL_FROM_NAME=ByteMe Store
-   RABBITMQ_HOST=rabbitmq
-   RABBITMQ_PORT=5672
-   RABBITMQ_USER=guest
-   RABBITMQ_PASS=guest
+      EMAIL_FROM_NAME=ByteMe Store
+      RABBITMQ_HOST=rabbitmq
+      RABBITMQ_PORT=5672
+      RABBITMQ_USER=guest
+      RABBITMQ_PASS=guest
 
 ### Deployment
 
