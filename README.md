@@ -5,17 +5,13 @@ ByteMe is a microservices-based application designed to handle various functiona
 ## 🛠 Tech Stack
 
 - **Frontend:** Next.js
-- **Backend:** Flask migrate, postgres
+- **Backend:** postgres
 - **Authentication:** Firebase (used exclusively for user authentication)
-- **Payment Integration:** Stripe microservice
+- **Payment Integration:** Stripe service
+- **Email Notification:** SendGrid service
 - **Messaging:** RabbitMQ for asynchronous communication
 - **Containerization:** Docker
 
-## 📜 Documentation
-
-- **[DEVELOPMENT.md](DEVELOPMENT.md)** - Development setup and coding standards
-- **[CONTRIBUTING.md](CONTRIBUTING.md)** - Contribution guidelines, branching strategy, and PR guide
-- **[CHANGELOG.md](CHANGELOG.md)** - Automatically generated changelog
 
 ## 📥 Installation & Setup
 
@@ -24,14 +20,24 @@ ByteMe is a microservices-based application designed to handle various functiona
 1. Install [Node.js](https://nodejs.org/) (v16 or higher).
 2. Install [Python](https://www.python.org/) (v3.8 or higher).
 3. Install [Docker](https://www.docker.com/) (optional, for containerized deployment).
-4. Set up Firebase and Stripe accounts.
+4. Set up Firebase, Stripe and SendGrid credentials. 
+   a. Firebase credentials go into .env file at root of directory
+   b. Stripe credentials go to root of /stripe folder, add default URLs and rabbitMQ details:
+      # Default URLs
+      DEFAULT_SUCCESS_URL=http://localhost:3000/success
+      DEFAULT_CANCEL_URL=http://localhost:3000/checkout?canceled=true
 
-1. Install Python dependencies:
-   ```sh
-   pip install -r requirements.txt
-   ```
+      # RabbitMQ settings
+      RABBITMQ_HOST=localhost
+      RABBITMQ_PORT=5672
+      RABBITMQ_USER=guest
+      RABBITMQ_PASSWORD=guest
 
-2. Start the services using Docker Compose:
-   ```sh
-   docker-compose up -d --build
-   ```
+   c. SendGrid credentials go to root of /email_service folder, add rabbitMQ details:
+      EMAIL_FROM_NAME=ByteMe Store
+      RABBITMQ_HOST=rabbitmq
+      RABBITMQ_PORT=5672
+      RABBITMQ_USER=guest
+      RABBITMQ_PASS=guest
+
+   
