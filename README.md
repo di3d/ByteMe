@@ -21,7 +21,8 @@ ByteMe is a microservices-based application designed to handle various functiona
 3. Install Docker:
    - For **Linux**: [Docker Engine](https://docs.docker.com/engine/install/)
    - For **macOS/Windows**: [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-4. Set up Firebase, Stripe and SendGrid credentials.
+4a. If you're evaluating this file for ESD project, then there will be a .env files google docs in the zipped up folder, under Deliverables/codebase. Inside, there are multiple .env files organized under their relative path from the root of our code repository.
+4b. Set up Firebase, Stripe and SendGrid credentials.
    a. Firebase credentials go into root of /byteme folder (our frontend).
 
    b. Stripe credentials go into .env at root of /stripe folder, add default URLs and rabbitMQ details:
