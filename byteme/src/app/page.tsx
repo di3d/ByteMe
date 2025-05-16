@@ -7,7 +7,7 @@ export default function Page() {
   return (
     <div>
       <div className="w-full bg-gradient-to-r from-blue-800 via-purple-800 to-pink-800 py-20 px-6 text-center text-white">
-        <h1 className="text-5xl font-extrabold">Welcome to ByteMe</h1>
+        <h1 className="text-5xl font-extrabold">Welcome to ByteMe!</h1>
         <p className="text-lg mt-4">Your community-powered PC builder with real user recommendations</p>
         <div className="mt-8 flex justify-center gap-4">
           <Button className="bg-white text-blue-500 hover:bg-gray-800 px-6 py-3 rounded-lg text-lg"><Link href="/build"> Start Building</Link></Button>
